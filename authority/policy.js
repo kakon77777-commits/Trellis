@@ -47,6 +47,15 @@ function evaluateAuthority(request) {
   if (request.requested_action === 'entity.register') {
     allowed = Boolean(request.principal_id && request.actor_id);
     policyRef = request.policy_ref ?? 'policy:entity-register:v1';
+  } else if (request.requested_action === 'entity.assertion_add') {
+    allowed = Boolean(
+      request.principal_id &&
+      request.actor_id &&
+      request.principal_actor_id &&
+      request.target_entity_id &&
+      request.principal_actor_id === request.target_entity_id
+    );
+    policyRef = request.policy_ref ?? 'policy:entity-self-assertion:v1';
   } else if (request.requested_action === 'protected.execute') {
     allowed = hasExplicitCapability(request);
     policyRef = request.policy_ref ?? 'policy:explicit-capability:v1';

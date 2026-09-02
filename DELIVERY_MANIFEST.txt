@@ -1,0 +1,6 @@
+Trellis Relationship Surface v0.1
+Date: 2026-09-02
+Branch: relationship-surface/v0.1
+Head: e9fbf416665a5c11ebf79ae5684832b020bdf744
+Base local profile branch: profile/v0.1
+Verification: npm test 94/94 PASS; npm run check PASS; git diff --check clean

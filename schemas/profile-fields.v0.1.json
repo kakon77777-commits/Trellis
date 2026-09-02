@@ -1,0 +1,50 @@
+{
+  "registry_ref": "profile-fields:0.1",
+  "fields": {
+    "profile:display_name:v1": {
+      "id": "profile:display_name:v1",
+      "value_type": "string",
+      "cardinality": "single",
+      "max_length": 120,
+      "visibility": {"default": "public", "allowed": ["public", "participants", "private"]},
+      "self_assertable": true
+    },
+    "profile:bio:v1": {
+      "id": "profile:bio:v1",
+      "value_type": "string",
+      "cardinality": "single",
+      "max_length": 4000,
+      "visibility": {"default": "public", "allowed": ["public", "participants", "private"]},
+      "self_assertable": true
+    },
+    "profile:avatar_url:v1": {
+      "id": "profile:avatar_url:v1",
+      "value_type": "url",
+      "cardinality": "single",
+      "visibility": {"default": "public", "allowed": ["public", "participants", "private"]},
+      "self_assertable": true
+    },
+    "profile:website:v1": {
+      "id": "profile:website:v1",
+      "value_type": "url",
+      "cardinality": "single",
+      "visibility": {"default": "public", "allowed": ["public", "participants", "private"]},
+      "self_assertable": true
+    },
+    "profile:alias:v1": {
+      "id": "profile:alias:v1",
+      "value_type": "string",
+      "cardinality": "multi",
+      "max_length": 120,
+      "visibility": {"default": "participants", "allowed": ["public", "participants", "private"]},
+      "self_assertable": true
+    },
+    "profile:external_link:v1": {
+      "id": "profile:external_link:v1",
+      "value_type": "url",
+      "cardinality": "multi",
+      "visibility": {"default": "public", "allowed": ["public", "participants", "private"]},
+      "self_assertable": true
+    }
+  }
+}
