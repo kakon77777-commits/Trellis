@@ -1,0 +1,5 @@
+[
+  { "requested": null, "default": "participants", "allowed": ["public", "participants", "private"], "expected": "participants" },
+  { "requested": "private", "default": "participants", "allowed": ["public", "participants", "private"], "expected": "private" },
+  { "requested": "scope_members", "default": "participants", "allowed": ["public", "participants", "private"], "error": "VISIBILITY_NOT_ALLOWED" }
+]

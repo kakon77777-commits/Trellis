@@ -1,0 +1,56 @@
+{
+  "events": [
+    {
+      "event_id": "evt:rel-1:1",
+      "event_type": "relationship.proposed",
+      "stream_seq": 1,
+      "payload": {
+        "relationship_id": "rel:1",
+        "source_entity_id": "actor:A",
+        "target_entity_id": "actor:B",
+        "relationship_type": "collaborates_with",
+        "scope_ref": "project:X",
+        "taxonomy_ref": "ai-fb-relations:0.1",
+        "visibility": "participants",
+        "visibility_policy_ref": "visibility-policy:0.1"
+      }
+    },
+    {
+      "event_id": "evt:rel-1:2",
+      "event_type": "relationship.activated",
+      "stream_seq": 2,
+      "payload": {}
+    },
+    {
+      "event_id": "evt:rel-1:3",
+      "event_type": "relationship.evidence_added",
+      "stream_seq": 3,
+      "payload": { "evidence_ref": "artifact:X" }
+    },
+    {
+      "event_id": "evt:rel-1:4",
+      "event_type": "relationship.contestation_opened",
+      "stream_seq": 4,
+      "payload": { "contestation_id": "contest:C1" }
+    },
+    {
+      "event_id": "evt:rel-1:5",
+      "event_type": "relationship.contestation_resolved",
+      "stream_seq": 5,
+      "payload": { "contestation_id": "contest:C1", "resolution": "dismissed" }
+    },
+    {
+      "event_id": "evt:rel-1:6",
+      "event_type": "relationship.terminated",
+      "stream_seq": 6,
+      "payload": { "reason": "revoked" }
+    }
+  ],
+  "expected": {
+    "lifecycle": "terminated",
+    "termination_reason": "revoked",
+    "evidence_count": 1,
+    "open_contestation_count": 0,
+    "stream_version": 6
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "policy_ref": "ai-fb-relationship-policy:0.1",
+  "visibility_policy_ref": "visibility-policy:0.1",
+  "relations": {
+    "follows": {
+      "activation": "unilateral",
+      "visibility": {
+        "default": "public",
+        "allowed": ["public", "participants", "private"]
+      }
+    },
+    "subscribes_to": {
+      "activation": "unilateral",
+      "visibility": {
+        "default": "participants",
+        "allowed": ["public", "scope_members", "participants", "private"]
+      }
+    },
+    "collaborates_with": {
+      "activation": "bilateral_consent",
+      "visibility": {
+        "default": "participants",
+        "allowed": ["public", "scope_members", "participants", "private"]
+      }
+    },
+    "trusts": {
+      "activation": "unilateral",
+      "visibility": {
+        "default": "participants",
+        "allowed": ["public", "scope_members", "participants", "private"]
+      }
+    },
+    "reviews": {
+      "activation": "unilateral",
+      "visibility": {
+        "default": "public",
+        "allowed": ["public", "scope_members", "participants", "private"]
+      }
+    },
+    "delegates_to": {
+      "activation": "bilateral_plus_authority_check",
+      "visibility": {
+        "default": "participants",
+        "allowed": ["public", "scope_members", "participants", "private"]
+      }
+    },
+    "member_of": {
+      "activation": "membership_policy",
+      "visibility": {
+        "default": "public",
+        "allowed": ["public", "scope_members", "participants", "private"]
+      }
+    }
+  }
+}

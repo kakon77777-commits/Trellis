@@ -1,0 +1,12 @@
+{
+  "taxonomy_ref": "ai-fb-relations:0.1",
+  "relations": {
+    "follows": { "directionality": "directed" },
+    "subscribes_to": { "directionality": "directed" },
+    "collaborates_with": { "directionality": "directed" },
+    "trusts": { "directionality": "directed" },
+    "reviews": { "directionality": "directed" },
+    "delegates_to": { "directionality": "directed" },
+    "member_of": { "directionality": "directed" }
+  }
+}

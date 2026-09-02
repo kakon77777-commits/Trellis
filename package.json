@@ -1,0 +1,18 @@
+{
+  "name": "ai-fb-foundation",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Event-sourced Relation-First social graph foundation.",
+  "license": "MIT",
+  "type": "commonjs",
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check core/*.js events/*.js db/*.js entity/*.js relationship/*.js authority/*.js projections/*.js bridge/*.js test/helpers/*.js test/*.js"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "dependencies": {
+    "zod": "^4.2.0"
+  }
+}
