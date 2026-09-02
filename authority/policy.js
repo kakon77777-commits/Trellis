@@ -39,6 +39,26 @@ function relationshipDecision(request) {
   }
 }
 
+
+function publicationDecision(request) {
+  const principalActorId = request.principal_actor_id;
+  if (request.requested_action === 'publication.create') {
+    if (principalActorId !== request.author_actor_id) return false;
+    if (request.scope_ref && String(request.scope_ref).startsWith('community:')) {
+      return request.active_membership === true && hasExplicitCapability({
+        ...request,
+        capability: 'publication:create',
+        scope_ref: request.scope_ref
+      });
+    }
+    return true;
+  }
+  if (request.requested_action === 'publication.revise' || request.requested_action === 'publication.withdraw') {
+    return Boolean(request.publication_state) && principalActorId === request.publication_state.author_actor_id;
+  }
+  return false;
+}
+
 function evaluateAuthority(request) {
   validateAuthorityRequest(request);
   let allowed = false;
@@ -62,6 +82,9 @@ function evaluateAuthority(request) {
   } else if (request.requested_action.startsWith('relationship.')) {
     allowed = relationshipDecision(request);
     policyRef = request.policy_ref ?? request.relationship_policy?.relationship_policy_ref ?? 'policy:relationship:v1';
+  } else if (request.requested_action.startsWith('publication.')) {
+    allowed = publicationDecision(request);
+    policyRef = request.policy_ref ?? 'trellis-publication-policy:0.1';
   }
 
   return createAuthorityReceipt(request, allowed ? 'allow' : 'deny', policyRef);

@@ -83,6 +83,39 @@ CREATE TABLE relationships_current (
   materializer_version TEXT NOT NULL
 );
 
+
+CREATE TABLE publications_current (
+  publication_id TEXT PRIMARY KEY,
+  author_actor_id TEXT NOT NULL,
+  publication_type TEXT NOT NULL,
+  scope_ref TEXT,
+  visibility TEXT NOT NULL,
+  audience_actor_ids_json TEXT NOT NULL DEFAULT '[]',
+  reply_to_ref TEXT,
+  quote_of_ref TEXT,
+  publication_policy_ref TEXT NOT NULL,
+  lifecycle TEXT NOT NULL,
+  withdrawal_reason TEXT,
+  current_revision INTEGER NOT NULL,
+  current_body TEXT NOT NULL,
+  created_event_id TEXT NOT NULL,
+  last_event_id TEXT NOT NULL,
+  stream_version INTEGER NOT NULL,
+  materializer_version TEXT NOT NULL
+);
+
+CREATE INDEX publications_current_author_idx
+ON publications_current(author_actor_id, publication_id);
+
+CREATE INDEX publications_current_scope_idx
+ON publications_current(scope_ref, visibility, lifecycle);
+
+CREATE INDEX publications_current_reply_idx
+ON publications_current(reply_to_ref, publication_id);
+
+CREATE INDEX publications_current_quote_idx
+ON publications_current(quote_of_ref, publication_id);
+
 CREATE INDEX canonical_events_stream_idx
 ON canonical_events(stream_type, stream_id, stream_seq);
 

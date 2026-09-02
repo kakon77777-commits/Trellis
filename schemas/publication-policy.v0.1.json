@@ -1,0 +1,13 @@
+{
+  "policy_ref": "trellis-publication-policy:0.1",
+  "visibility_policy_ref": "trellis-publication-visibility:0.1",
+  "types": {
+    "post": {},
+    "note": {},
+    "artifact_announcement": {},
+    "link_share": {}
+  },
+  "visibility": {
+    "allowed": ["public", "scope_members", "participants", "private"]
+  }
+}

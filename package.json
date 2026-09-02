@@ -7,7 +7,7 @@
   "type": "commonjs",
   "scripts": {
     "test": "node --test",
-    "check": "node --check core/*.js events/*.js db/*.js entity/*.js relationship/*.js relationship-surface/*.js authority/*.js projections/*.js profile/*.js community/*.js discovery/*.js bridge/*.js test/helpers/*.js test/*.js"
+    "check": "node --check core/*.js events/*.js db/*.js entity/*.js relationship/*.js relationship-surface/*.js authority/*.js projections/*.js profile/*.js community/*.js discovery/*.js publication/*.js foundation/*.js bridge/*.js test/helpers/*.js test/*.js"
   },
   "engines": {
     "node": ">=22.5.0"
