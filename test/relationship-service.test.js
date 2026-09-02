@@ -192,3 +192,27 @@ test('nonparticipant cannot add relationship evidence', () => {
 
   assert.equal(store.readStream('relationship', proposed.relationship_id).length, 1);
 });
+
+test('successful relationship activation retry is deduplicated even though lifecycle is already active', () => {
+  const { proposeRelationship, activateRelationship } = require('../relationship/service');
+  const db = createTestDatabase();
+  const store = new SQLiteEventStore(db);
+  const proposed = proposeRelationship(proposalCommand(), contextFor(store, 'actor:A'));
+  const command = {
+    command_id: 'cmd:activate-retry',
+    idempotency_key: 'idem:activate-retry',
+    principal_id: 'principal:B',
+    relationship_id: proposed.relationship_id,
+    expected_version: 1,
+    occurred_at: '2026-09-02T07:50:00.000Z'
+  };
+
+  const first = activateRelationship(command, contextFor(store, 'actor:B'));
+  const countBefore = store.readStream('relationship', proposed.relationship_id).length;
+  const second = activateRelationship(command, contextFor(store, 'actor:B'));
+  const countAfter = store.readStream('relationship', proposed.relationship_id).length;
+
+  assert.equal(second.relationship_id, first.relationship_id);
+  assert.equal(second.receipt.deduplicated, true);
+  assert.equal(countAfter, countBefore);
+});

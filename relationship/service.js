@@ -1,13 +1,28 @@
 const { createHash } = require('node:crypto');
 const { canonicalStringify } = require('../core/canonical-json');
 const { deriveId } = require('../core/ids');
-const { PolicyDeniedError, InvalidTransitionError } = require('../core/errors');
+const { PolicyDeniedError, InvalidTransitionError, IdempotencyConflictError } = require('../core/errors');
 const { evaluateAuthority } = require('../authority/policy');
 const { resolveRelationshipPolicy, resolveVisibility } = require('./taxonomy');
 const { foldRelationship } = require('./fold');
 
 function digestCommand(command) {
   return createHash('sha256').update(canonicalStringify(command), 'utf8').digest('hex');
+}
+
+
+function idempotencyGate(command, context, relationshipId) {
+  const commandDigest = digestCommand(command);
+  const prior = context.eventStore.lookupIdempotency(command.idempotency_key);
+  if (!prior) return { commandDigest, result: null };
+  if (prior.command_digest !== commandDigest) throw new IdempotencyConflictError();
+  return {
+    commandDigest,
+    result: {
+      relationship_id: relationshipId,
+      receipt: { ...prior, deduplicated: true }
+    }
+  };
 }
 
 function ensureCommand(command, required) {
@@ -46,6 +61,8 @@ function authorityOrThrow(request) {
 function proposeRelationship(command, context) {
   ensureCommand(command, ['source_entity_id', 'target_entity_id', 'relationship_type']);
   const relationshipId = command.relationship_id ?? deriveId('rel', command.command_id);
+  const gate = idempotencyGate(command, context, relationshipId);
+  if (gate.result) return gate.result;
   const policy = resolveRelationshipPolicy(command.relationship_type);
   const visibility = resolveVisibility({ requestedVisibility: command.visibility ?? null, policy });
   const timestamp = command.occurred_at ?? context.evaluatedAt ?? new Date().toISOString();
@@ -90,7 +107,7 @@ function proposeRelationship(command, context) {
     commandReceipt: {
       command_id: command.command_id,
       idempotency_key: command.idempotency_key,
-      command_digest: digestCommand(command),
+      command_digest: gate.commandDigest,
       status: 'accepted',
       created_at: timestamp
     }
@@ -101,6 +118,8 @@ function proposeRelationship(command, context) {
 
 function activateRelationship(command, context) {
   ensureCommand(command, ['relationship_id']);
+  const gate = idempotencyGate(command, context, command.relationship_id);
+  if (gate.result) return gate.result;
   const events = context.eventStore.readStream('relationship', command.relationship_id);
   const state = foldRelationship(events);
   if (state.lifecycle !== 'proposed') throw new InvalidTransitionError('RELATIONSHIP_CANNOT_ACTIVATE');
@@ -129,7 +148,7 @@ function activateRelationship(command, context) {
     commandReceipt: {
       command_id: command.command_id,
       idempotency_key: command.idempotency_key,
-      command_digest: digestCommand(command),
+      command_digest: gate.commandDigest,
       status: 'accepted',
       created_at: timestamp
     }
@@ -158,6 +177,8 @@ function rejectImmutableMutationAttempt(command) {
 
 function appendRelationshipEvent(command, context, { eventType, suffix, action, payload }) {
   ensureCommand(command, ['relationship_id']);
+  const gate = idempotencyGate(command, context, command.relationship_id);
+  if (gate.result) return gate.result;
   rejectImmutableMutationAttempt(command);
   const history = context.eventStore.readStream('relationship', command.relationship_id);
   const state = foldRelationship(history);
@@ -193,7 +214,7 @@ function appendRelationshipEvent(command, context, { eventType, suffix, action, 
     commandReceipt: {
       command_id: command.command_id,
       idempotency_key: command.idempotency_key,
-      command_digest: digestCommand(command),
+      command_digest: gate.commandDigest,
       status: 'accepted',
       created_at: timestamp
     }
