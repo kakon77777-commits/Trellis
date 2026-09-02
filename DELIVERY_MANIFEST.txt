@@ -1,0 +1,6 @@
+Trellis Discovery v0.1
+Date: 2026-09-02
+Branch: discovery/v0.1
+HEAD: ed2fc89280a637998eae6ddbd025ec61f586b486
+Base: community/v0.1 (58bc8080c256a86e346abe51be21cc7573fcedb3)
+Verification: 151/151 tests PASS; npm run check PASS; git diff --check community/v0.1...HEAD PASS; working tree clean.
