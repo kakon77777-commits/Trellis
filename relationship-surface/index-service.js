@@ -14,14 +14,14 @@ function relationshipIndexItem(row) {
   };
 }
 
-function buildRelationshipIndex({ actorId, viewerContext = {}, db, disclosurePolicy }) {
+function buildRelationshipIndex({ actorId, viewerContext = {}, db, disclosurePolicy, membershipResolver }) {
   const candidates = db.prepare(`
     SELECT * FROM relationships_current
     WHERE source_entity_id = ? OR target_entity_id = ?
     ORDER BY relationship_id
   `).all(actorId, actorId);
 
-  const visible = candidates.filter(row => canViewRelationship(row, viewerContext, disclosurePolicy));
+  const visible = candidates.filter(row => canViewRelationship(row, viewerContext, disclosurePolicy, membershipResolver));
   const result = {
     actor_id: actorId,
     active: [],

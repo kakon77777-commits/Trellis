@@ -2,36 +2,33 @@ const { createHash } = require('node:crypto');
 const { canonicalStringify } = require('../core/canonical-json');
 const { deriveId } = require('../core/ids');
 const { PolicyDeniedError } = require('../core/errors');
-const { validateRegisterActorCommand } = require('./schemas');
+const { validateRegisterEntityCommand, validateRegisterActorCommand } = require('./schemas');
 
 function digestCommand(command) {
   return createHash('sha256').update(canonicalStringify(command), 'utf8').digest('hex');
 }
 
-function registerActor(command, { eventStore, authorize }) {
-  validateRegisterActorCommand(command);
-  const entityId = command.entity_id ?? deriveId('actor', command.command_id);
-  const actorId = entityId;
+function registerEntity(command, { eventStore, authorize }) {
+  validateRegisterEntityCommand(command);
+  const entityId = command.entity_id ?? deriveId(command.entity_kind, command.command_id);
   const occurredAt = command.occurred_at ?? new Date().toISOString();
   const authorityReceipt = authorize({
     command_id: command.command_id,
     principal_id: command.principal_id,
-    actor_id: actorId,
+    actor_id: entityId,
     requested_action: 'entity.register',
     aggregate_id: entityId,
     policy_ref: 'policy:entity-register:v1',
     credential_refs: command.credential_refs ?? [],
     evaluated_at: occurredAt
   });
-  if (!authorityReceipt || authorityReceipt.decision !== 'allow') {
-    throw new PolicyDeniedError();
-  }
+  if (!authorityReceipt || authorityReceipt.decision !== 'allow') throw new PolicyDeniedError();
 
   const events = [{
     event_id: `evt:${command.command_id}:registered`,
     schema_version: '0.1',
     event_type: 'entity.registered',
-    actor_id: actorId,
+    actor_id: entityId,
     principal_id: command.principal_id,
     causation_id: command.command_id,
     correlation_id: command.correlation_id ?? command.command_id,
@@ -41,8 +38,8 @@ function registerActor(command, { eventStore, authorize }) {
     provenance_refs: command.provenance_refs ?? [],
     payload: {
       entity_id: entityId,
-      entity_kind: 'actor',
-      actor_capable: true,
+      entity_kind: command.entity_kind,
+      actor_capable: command.actor_capable,
       display_name: command.display_name ?? null
     }
   }];
@@ -52,7 +49,7 @@ function registerActor(command, { eventStore, authorize }) {
       event_id: `evt:${command.command_id}:runtime`,
       schema_version: '0.1',
       event_type: 'entity.runtime_binding_added',
-      actor_id: actorId,
+      actor_id: entityId,
       principal_id: command.principal_id,
       causation_id: command.command_id,
       correlation_id: command.correlation_id ?? command.command_id,
@@ -82,8 +79,16 @@ function registerActor(command, { eventStore, authorize }) {
       created_at: occurredAt
     }
   });
-
   return { entity_id: entityId, receipt };
 }
 
-module.exports = { registerActor };
+function registerActor(command, context) {
+  validateRegisterActorCommand(command);
+  return registerEntity({
+    ...command,
+    entity_kind: 'actor',
+    actor_capable: true
+  }, context);
+}
+
+module.exports = { registerEntity, registerActor };

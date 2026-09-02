@@ -78,30 +78,32 @@ function buildActorProfile({
   eventStore,
   db,
   disclosurePolicy,
-  runtimeDisclosurePolicy = defaultRuntimeDisclosurePolicy
+  runtimeDisclosurePolicy = defaultRuntimeDisclosurePolicy,
+  membershipResolver
 }) {
   const events = eventStore.readStream('entity', actorId);
   if (events.length === 0) return null;
   const entityState = foldEntity(events);
+  if (entityState.entity_kind !== 'actor') return null;
   const profileState = foldProfileAssertions(events);
   const eventById = new Map(events.map(event => [event.event_id, event]));
   const relationships = loadRelationships(db, actorId);
 
   const visibleRelationships = relationships
-    .filter(relationship => canViewRelationship(relationship, viewerContext, disclosurePolicy))
+    .filter(relationship => canViewRelationship(relationship, viewerContext, disclosurePolicy, membershipResolver))
     .map(relationshipView);
 
   const presentation = { aliases: [], external_links: [] };
   for (const [fieldRef, key] of Object.entries(SINGLE_PRESENTATION)) {
     const assertion = profileState.active_single[fieldRef];
-    if (assertion && canViewAssertion(assertion, actorId, viewerContext, relationships, disclosurePolicy)) {
+    if (assertion && canViewAssertion(assertion, actorId, viewerContext, relationships, disclosurePolicy, membershipResolver)) {
       presentation[key] = assertionView(assertion, eventById, db);
     }
   }
   for (const [fieldRef, key] of Object.entries(MULTI_PRESENTATION)) {
     const assertions = profileState.active_multi[fieldRef] ?? [];
     presentation[key] = assertions
-      .filter(assertion => canViewAssertion(assertion, actorId, viewerContext, relationships, disclosurePolicy))
+      .filter(assertion => canViewAssertion(assertion, actorId, viewerContext, relationships, disclosurePolicy, membershipResolver))
       .map(assertion => assertionView(assertion, eventById, db));
   }
 
@@ -110,7 +112,7 @@ function buildActorProfile({
   );
 
   const self = isSelfOrRepresentative(viewerContext, actorId);
-  const participant = !self && hasQualifiedDirectRelationship(actorId, viewerContext, relationships, disclosurePolicy);
+  const participant = !self && hasQualifiedDirectRelationship(actorId, viewerContext, relationships, disclosurePolicy, membershipResolver);
   const result = {
     actor_id: actorId,
     entity_kind: entityState.entity_kind,

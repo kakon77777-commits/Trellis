@@ -28,6 +28,7 @@ function writeActorProjection(db, eventStore, actorId) {
   const events = eventStore.readStream('entity', actorId);
   if (events.length === 0) return false;
   const entityState = foldEntity(events);
+  if (entityState.entity_kind !== 'actor') return false;
   const profileState = foldProfileAssertions(events);
 
   db.prepare('DELETE FROM actor_profile_assertions_current WHERE actor_id = ?').run(actorId);

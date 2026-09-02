@@ -1,0 +1,28 @@
+{
+  "registry_ref": "community-fields:0.1",
+  "fields": {
+    "community:name:v1": {
+      "value_type": "string",
+      "cardinality": "single",
+      "max_length": 120,
+      "visibility": { "default": "public", "allowed": ["public", "private"] }
+    },
+    "community:description:v1": {
+      "value_type": "string",
+      "cardinality": "single",
+      "max_length": 4000,
+      "visibility": { "default": "public", "allowed": ["public", "private"] }
+    },
+    "community:avatar_url:v1": {
+      "value_type": "url",
+      "cardinality": "single",
+      "visibility": { "default": "public", "allowed": ["public", "private"] }
+    },
+    "community:discoverability:v1": {
+      "value_type": "enum",
+      "values": ["public", "unlisted", "private"],
+      "cardinality": "single",
+      "visibility": { "default": "public", "allowed": ["public"] }
+    }
+  }
+}

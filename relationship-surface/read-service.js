@@ -16,11 +16,12 @@ function loadRelationshipDetail({
   viewerContext = {},
   eventStore,
   db,
-  disclosurePolicy
+  disclosurePolicy,
+  membershipResolver
 }) {
   const relationship = loadRelationshipRow(db, relationshipId);
   if (!relationship) return null;
-  if (!canViewRelationship(relationship, viewerContext, disclosurePolicy)) return null;
+  if (!canViewRelationship(relationship, viewerContext, disclosurePolicy, membershipResolver)) return null;
 
   const events = eventStore.readStream('relationship', relationshipId);
   if (events.length === 0) return null;
