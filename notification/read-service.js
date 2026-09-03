@@ -1,4 +1,5 @@
 const {resolveCurrentNotificationContext}=require('./read-policy');
+const {applyOwnerNotificationPreferences}=require('../preference/notification-policy');
 
 const PROJECTION_VERSION='trellis-notification-inbox:0.1';
 function authorizedRecipientViewer(recipientActorId,viewerContext={}){
@@ -41,8 +42,9 @@ function buildNotificationInbox({recipientActorId,viewerContext={},db,eventStore
     const item=loadCurrentNotificationItem({row,viewerContext,db,eventStore,disclosurePolicy});
     if(item) items.push(item);
   }
-  items.sort(compareDesc);
-  return {recipient_actor_id:recipientActorId,items,unread_count:items.filter(item=>!item.acknowledged).length,projection_version:PROJECTION_VERSION};
+  const preferredItems=applyOwnerNotificationPreferences({ownerActorId:recipientActorId,viewerContext,items,db});
+  preferredItems.sort(compareDesc);
+  return {recipient_actor_id:recipientActorId,items:preferredItems,unread_count:preferredItems.filter(item=>!item.acknowledged).length,projection_version:PROJECTION_VERSION};
 }
 
 function loadNotificationInboxSurface({recipientActorId,viewerContext={},db,eventStore,disclosurePolicy,limit=20,cursor=null}){

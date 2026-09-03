@@ -14,6 +14,8 @@ Discovery
 Publication
 Feed
 Reaction
+Notification
+Preference
 ```
 
 All declare inheritance of `X1`, `X2`, and `X3`.
@@ -35,5 +37,7 @@ All declare inheritance of `X1`, `X2`, and `X3`.
 - Publication: O4 -> X1; O8/O15 -> X3; O9/O10 -> X2; O14 strengthens X1 for references.
 - Feed: F3/F4/F12 -> X3; F8 -> X2; Feed content-source visibility obeys X1/X3 ceilings.
 - Reaction: E6 -> X1; E7 -> X3; E12 and Reaction mutation authority -> X2.
+- Notification: N3 -> X1; N5/N6 -> X3; N7/N13 -> X2.
+- Preference: Q3 -> X1; Q9 -> X2; Q13 and owner-only noninterference -> X3.
 
 A future domain may strengthen X1-X3 but may not weaken them through a domain-local exception.

@@ -3,6 +3,7 @@ const { collectHomePublicationItems } = require('./publication-items');
 const { collectHomeActivityItems } = require('./activity-items');
 const { sortFeedItems } = require('./chronological');
 const { FEED_ALGORITHM_REF, FEED_PROJECTION_VERSION, computeFeedSnapshotRef } = require('./snapshot');
+const { applyOwnerFeedPreferences } = require('../preference/feed-policy');
 
 function buildHomeFeedSnapshot({
   subjectActorId,
@@ -33,7 +34,9 @@ function buildHomeFeedSnapshot({
     eventStore,
     disclosurePolicy
   });
-  const items = sortFeedItems([...publicationItems, ...activityItems]);
+  const visibleItems = [...publicationItems, ...activityItems];
+  const preferredItems = applyOwnerFeedPreferences({ ownerActorId: subjectActorId, viewerContext, items: visibleItems, db });
+  const items = sortFeedItems(preferredItems);
   const snapshotRef = computeFeedSnapshotRef({
     subjectActorId,
     viewerContext,

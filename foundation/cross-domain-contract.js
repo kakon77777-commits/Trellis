@@ -12,6 +12,7 @@ const INHERITORS = Object.freeze({
   publication: Object.freeze(['X1','X2','X3']),
   feed: Object.freeze(['X1','X2','X3']),
   reaction: Object.freeze(['X1','X2','X3']),
-  notification: Object.freeze(['X1','X2','X3'])
+  notification: Object.freeze(['X1','X2','X3']),
+  preference: Object.freeze(['X1','X2','X3'])
 });
 module.exports = { CONTRACT_REF, INVARIANTS, INHERITORS };

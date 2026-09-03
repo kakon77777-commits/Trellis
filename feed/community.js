@@ -8,6 +8,7 @@ const {
   FEED_PROJECTION_VERSION,
   computeCommunityFeedSnapshotRef
 } = require('./snapshot');
+const { applyOwnerFeedPreferences } = require('../preference/feed-policy');
 
 function collectCommunityPublicationItems({
   communityId,
@@ -72,7 +73,12 @@ function buildCommunityFeed({
     eventStore,
     disclosurePolicy
   });
-  const items = sortFeedItems([...publicationItems, ...activityItems]);
+  const visibleItems = [...publicationItems, ...activityItems];
+  const ownerActorId = viewerContext.viewer_actor_id ?? null;
+  const preferredItems = ownerActorId
+    ? applyOwnerFeedPreferences({ ownerActorId, viewerContext, items: visibleItems, db })
+    : visibleItems;
+  const items = sortFeedItems(preferredItems);
   const snapshotRef = computeCommunityFeedSnapshotRef({
     communityId,
     viewerContext,

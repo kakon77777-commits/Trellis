@@ -81,6 +81,17 @@ function reactionDecision(request) {
 }
 
 
+
+function preferenceDecision(request) {
+  if (request.requested_action === 'preference.create') {
+    return Boolean(request.owner_actor_id && request.principal_actor_id === request.owner_actor_id);
+  }
+  if (request.requested_action === 'preference.withdraw' || request.requested_action === 'preference.restore') {
+    return Boolean(request.preference_state && request.principal_actor_id === request.preference_state.owner_actor_id);
+  }
+  return false;
+}
+
 function notificationDecision(request) {
   if (request.requested_action === 'notification.issue') {
     return hasExplicitCapability({ ...request, capability: 'notification:issue', scope_ref: null });
@@ -127,6 +138,9 @@ function evaluateAuthority(request) {
   } else if (request.requested_action.startsWith('notification.')) {
     allowed = notificationDecision(request);
     policyRef = request.policy_ref ?? 'policy:notification-processor:v1';
+  } else if (request.requested_action.startsWith('preference.')) {
+    allowed = preferenceDecision(request);
+    policyRef = request.policy_ref ?? 'policy:preference-owner:v1';
   }
 
   return createAuthorityReceipt(request, allowed ? 'allow' : 'deny', policyRef);
