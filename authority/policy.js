@@ -59,6 +59,27 @@ function publicationDecision(request) {
   return false;
 }
 
+
+function reactionDecision(request) {
+  const principalActorId = request.principal_actor_id;
+  if (['reaction.create', 'reaction.change', 'reaction.restore'].includes(request.requested_action)) {
+    return Boolean(
+      request.actor_id &&
+      principalActorId === request.actor_id &&
+      request.publication_active === true &&
+      request.publication_readable === true
+    );
+  }
+  if (request.requested_action === 'reaction.withdraw') {
+    return Boolean(
+      request.reaction_state &&
+      request.reaction_state.lifecycle === 'active' &&
+      principalActorId === request.reaction_state.actor_id
+    );
+  }
+  return false;
+}
+
 function evaluateAuthority(request) {
   validateAuthorityRequest(request);
   let allowed = false;
@@ -85,6 +106,9 @@ function evaluateAuthority(request) {
   } else if (request.requested_action.startsWith('publication.')) {
     allowed = publicationDecision(request);
     policyRef = request.policy_ref ?? 'trellis-publication-policy:0.1';
+  } else if (request.requested_action.startsWith('reaction.')) {
+    allowed = reactionDecision(request);
+    policyRef = request.policy_ref ?? 'policy:reaction-on-readable-publication:v1';
   }
 
   return createAuthorityReceipt(request, allowed ? 'allow' : 'deny', policyRef);

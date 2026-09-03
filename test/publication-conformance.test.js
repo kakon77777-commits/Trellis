@@ -89,7 +89,6 @@ test('Publication public APIs expose no canonical rewrite, author/visibility mut
   }
   const references=require('../publication/references');
   assert.equal(references.copyReferencePreviewIntoCanonical,undefined);
-  assert.equal(fs.existsSync(path.join(__dirname,'..','feed')),false);
 });
 
 test('release syntax gate includes Publication and Foundation cross-domain modules', () => {

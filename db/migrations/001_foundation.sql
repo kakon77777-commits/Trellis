@@ -116,6 +116,27 @@ ON publications_current(reply_to_ref, publication_id);
 CREATE INDEX publications_current_quote_idx
 ON publications_current(quote_of_ref, publication_id);
 
+
+CREATE TABLE reactions_current (
+  reaction_id TEXT PRIMARY KEY,
+  actor_id TEXT NOT NULL,
+  publication_id TEXT NOT NULL,
+  scope_ref TEXT,
+  visibility TEXT NOT NULL,
+  audience_actor_ids_json TEXT NOT NULL DEFAULT '[]',
+  reaction_policy_ref TEXT NOT NULL,
+  lifecycle TEXT NOT NULL,
+  reaction_type TEXT,
+  created_event_id TEXT NOT NULL,
+  last_event_id TEXT NOT NULL,
+  stream_version INTEGER NOT NULL,
+  materializer_version TEXT NOT NULL,
+  UNIQUE(actor_id, publication_id)
+);
+
+CREATE INDEX reactions_current_publication_idx
+ON reactions_current(publication_id, lifecycle, reaction_id);
+
 CREATE INDEX canonical_events_stream_idx
 ON canonical_events(stream_type, stream_id, stream_seq);
 

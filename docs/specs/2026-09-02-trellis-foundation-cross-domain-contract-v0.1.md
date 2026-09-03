@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-02
 **Status:** FROZEN CROSS-DOMAIN CONTRACT
-**Applies to:** Profile, Relationship Surface, Community, Discovery, Publication, and future Trellis canonical/derived domains unless a later Foundation contract explicitly supersedes this version.
+**Applies to:** Profile, Relationship Surface, Community, Discovery, Publication, Feed, and future Trellis canonical/derived domains unless a later Foundation contract explicitly supersedes this version.
 
 ## 1. Purpose
 
@@ -170,6 +170,14 @@ The following existing domain rules are specializations of X1-X3 rather than ind
 - O10 (`PublicationActionHint != AuthorizationGrant`) specializes X2.
 - O14 (referenced child audience is bounded by referenced parent audience) strengthens X1 for references.
 - O15 (withdrawn/invisible target cannot leak stale content) specializes X3.
+
+### Feed v0.1
+
+- F3 (Feed candidate generation occurs after viewer visibility projection) is the required X3 computation order.
+- F4 (invisible fact produces no Feed signal) specializes X3.
+- F8 (`FeedActionHint != AuthorizationGrant`) specializes X2.
+- F12 (content-source relationship must itself be viewer-visible) strengthens X3 for personalized source selection.
+- Feed has no canonical visibility-bearing object of its own; every Publication/Relationship/Community input remains bounded by X1.
 
 ## 6. Contract Precedence
 

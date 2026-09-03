@@ -12,6 +12,8 @@ Relationship Surface
 Community
 Discovery
 Publication
+Feed
+Reaction
 ```
 
 All declare inheritance of `X1`, `X2`, and `X3`.
@@ -31,5 +33,7 @@ All declare inheritance of `X1`, `X2`, and `X3`.
 - Community: C7 -> X3; C4/C8/C11 -> X2.
 - Discovery: D2/D3/D6 -> X3; D12 -> X2.
 - Publication: O4 -> X1; O8/O15 -> X3; O9/O10 -> X2; O14 strengthens X1 for references.
+- Feed: F3/F4/F12 -> X3; F8 -> X2; Feed content-source visibility obeys X1/X3 ceilings.
+- Reaction: E6 -> X1; E7 -> X3; E12 and Reaction mutation authority -> X2.
 
 A future domain may strengthen X1-X3 but may not weaken them through a domain-local exception.

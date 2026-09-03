@@ -9,6 +9,8 @@ const INHERITORS = Object.freeze({
   relationship_surface: Object.freeze(['X1','X2','X3']),
   community: Object.freeze(['X1','X2','X3']),
   discovery: Object.freeze(['X1','X2','X3']),
-  publication: Object.freeze(['X1','X2','X3'])
+  publication: Object.freeze(['X1','X2','X3']),
+  feed: Object.freeze(['X1','X2','X3']),
+  reaction: Object.freeze(['X1','X2','X3'])
 });
 module.exports = { CONTRACT_REF, INVARIANTS, INHERITORS };
