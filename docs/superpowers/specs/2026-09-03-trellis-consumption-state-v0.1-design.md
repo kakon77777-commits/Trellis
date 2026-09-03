@@ -102,6 +102,17 @@ An operational domain may omit X1 only when it defines an explicit domain-local 
 
 Every current `derived_projection` entry effectively inherits X1/X2/X3 as projection constraints over its canonical inputs.
 
+
+### 2.2 State-class decision rule
+
+`state_class` classifies the **domain boundary**, not its event-file namespace or whether Authority has a domain-named decision function.
+
+A `canonical` domain creates or owns an independently addressable canonical aggregate identity whose existence/lifecycle or canonical facts live in Trellis canonical histories and may be referenced by other canonical facts. It may reuse generic canonical primitives. A `derived_projection` domain owns no independent canonical aggregate identity/state and is reproducible from canonical aggregates owned elsewhere. An `operational` domain owns mutable/retention-bounded non-canonical state that may intentionally be non-rebuildable.
+
+Community is canonical under this rule because `createCommunity()` creates the canonical institutional Entity `community:C` using `entity.registered(entity_kind=community)`, and later canonical facts reference that identity. Profile is derived because it creates no Profile aggregate identity; it projects an existing Actor Entity. Relationship Surface is derived because the underlying `relationship_id` is owned by the canonical Relationship aggregate, not by the surface. The Community Graph/Surface read model is itself derived, but the registry entry `community` denotes the broader institutional-entity domain that owns Community creation and canonical metadata commands. A separately registered future `community_surface` would therefore be `derived_projection`.
+
+Referenceability alone is not sufficient: Relationship Surface can expose the stable `relationship_id`, but that identity is owned by the underlying canonical Relationship aggregate rather than by the surface. Ownership/creation of the canonical aggregate is the decisive distinction. Dedicated event types or a dedicated Authority decision branch are not required for canonical classification.
+
 The old flat `INHERITORS[domain] = ['X1','X2','X3']` shape SHALL NOT remain the contract under test. Tests that currently import or assert that old shape MUST migrate to the new registry contract rather than silently losing coverage.
 
 ## 3. v0.1 durable semantics

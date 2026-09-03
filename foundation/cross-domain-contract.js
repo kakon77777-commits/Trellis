@@ -17,6 +17,10 @@ function entry(stateClass, contracts) {
   });
 }
 
+// state_class classifies the domain boundary, not its event namespace.
+// canonical: creates/owns an independently addressable canonical aggregate identity.
+// derived_projection: owns no independent canonical aggregate identity/state.
+// operational: owns mutable/retention-bounded non-canonical state.
 const CONTRACT_REGISTRY = Object.freeze({
   profile: entry('derived_projection',['X1','X2','X3']),
   relationship_surface: entry('derived_projection',['X1','X2','X3']),

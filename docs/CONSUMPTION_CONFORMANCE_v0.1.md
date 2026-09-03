@@ -18,6 +18,37 @@
 
 The old flat `INHERITORS` contract is no longer the tested Foundation API. Existing domain tests were migrated to `CONTRACT_REGISTRY` plus `effectiveContracts()` so the schema migration does not erase prior coverage.
 
+
+## State-class classification rule
+
+The Foundation registry classifies the **domain boundary**, not whether a module has a dedicated event namespace or a dedicated `authority/policy.js` decision branch.
+
+A domain is `canonical` when its command boundary **creates or owns an independently addressable canonical aggregate identity** whose existence/lifecycle or canonical facts are recorded in Trellis canonical histories and may be referenced by other canonical facts. A canonical domain MAY reuse a lower-level generic event algebra or Authority policy; bespoke event names are not required.
+
+A domain is `derived_projection` when it creates no independent canonical aggregate identity/state of its own and its output can be reconstructed entirely from canonical aggregates owned elsewhere. Deleting the projection loses no independently addressable canonical identity or fact.
+
+An `operational` domain owns mutable or retention-bounded state that is neither canonical social history nor necessarily rebuildable from canonical history.
+
+This rule explains the otherwise easy-to-misread classifications:
+
+- **Community is `canonical`.** `createCommunity()` creates the stable canonical Entity aggregate `community:C` through `entity.registered(entity_kind=community)`. Community metadata is appended to that same Entity history with `entity.assertion_added`; membership and scoped social facts reference the Community identity through canonical Relationship history. Other domains directly use `community:C` as `scope_ref` or relationship target. Reusing Entity/Relationship event vocabularies and generic Authority policies does not make the Community identity derived.
+- **Profile is `derived_projection`.** An Actor identity exists independently in Entity history. Profile creates no separate `profile:*` canonical aggregate identity; it projects viewer-safe profile state from already-canonical Entity assertions and social facts.
+- **Relationship Surface is `derived_projection`.** The stable `relationship_id` belongs to the underlying canonical Relationship aggregate, created by the Relationship domain. `relationship_surface` merely projects that existing aggregate and does not create or own the relationship identity.
+
+The `community` registry entry therefore refers to the Community **institutional-entity domain**, including `createCommunity()` and canonical Community metadata commands, not merely the Community Graph/Surface read projection. If a future registry adds a separate `community_surface` entry, that surface entry should be classified `derived_projection`.
+
+In compact form:
+
+\[
+\boxed{CanonicalDomain \Rightarrow OwnsOrCreatesCanonicalAggregateIdentity}
+\]
+
+\[
+\boxed{DerivedProjection \Rightarrow NoIndependentCanonicalAggregateIdentity}
+\]
+
+Referenceability is supporting evidence, not by itself sufficient: `relationship_surface` can expose a stable `relationship_id`, but that identity is owned by the underlying Relationship aggregate, not by the surface. Ownership/creation of the canonical aggregate is the decisive distinction. Dedicated event names or a dedicated Authority branch are implementation organization choices, not state-class criteria.
+
 ## Consumption K-series
 
 | Invariant | Executable evidence |
