@@ -1,0 +1,4 @@
+function escapeHtml(value){return String(value??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');}
+function renderItem(item){const source=item.source??{};const context=source.kind==='publication'?`${source.publication_id} ${source.preview??''}`:source.kind==='reaction'?`${source.publication_id} ${source.reaction_type??''}`:'';return `<li data-notification-id="${escapeHtml(item.notification_id)}"><span>${escapeHtml(item.notification_type)}</span><span>${escapeHtml(context)}</span></li>`;}
+function renderNotificationHtml(surface){return `<section data-recipient="${escapeHtml(surface.recipient_actor_id)}"><div data-unread="${surface.unread_count}">${surface.unread_count}</div><ul>${(surface.items??[]).map(renderItem).join('')}</ul></section>`;}
+module.exports={renderNotificationHtml};

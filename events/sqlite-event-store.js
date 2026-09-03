@@ -72,6 +72,14 @@ class SQLiteEventStore extends EventStore {
     `).all(streamType, streamId).map(eventFromRow);
   }
 
+  readEvent(eventId) {
+    const row = this.db.prepare(`
+      SELECT * FROM canonical_events
+      WHERE event_id = ?
+    `).get(eventId);
+    return eventFromRow(row);
+  }
+
   verifyHashChain(streamType, streamId) {
     const events = this.readStream(streamType, streamId);
     let expectedPrevHash = null;

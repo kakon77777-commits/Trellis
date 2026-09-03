@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-02
 **Status:** FROZEN CROSS-DOMAIN CONTRACT
-**Applies to:** Profile, Relationship Surface, Community, Discovery, Publication, Feed, and future Trellis canonical/derived domains unless a later Foundation contract explicitly supersedes this version.
+**Applies to:** Profile, Relationship Surface, Community, Discovery, Publication, Feed, Reaction, Notification, and future Trellis canonical/derived domains unless a later Foundation contract explicitly supersedes this version.
 
 ## 1. Purpose
 
@@ -178,6 +178,19 @@ The following existing domain rules are specializations of X1-X3 rather than ind
 - F8 (`FeedActionHint != AuthorizationGrant`) specializes X2.
 - F12 (content-source relationship must itself be viewer-visible) strengthens X3 for personalized source selection.
 - Feed has no canonical visibility-bearing object of its own; every Publication/Relationship/Community input remains bounded by X1.
+
+### Reaction v0.1
+
+- Reaction audience is inherited from the target Publication and remains bounded by X1.
+- Reaction mutation authority is independent of readability/membership and specializes X2.
+- Invisible Reaction facts cannot change viewer-visible Reaction summaries, Feed v0.1, or Discovery v0.1, specializing X3.
+
+### Notification v0.1
+
+- Notification canonical audience is the immutable singleton recipient `{recipient}`, specializing X1.
+- Notification read/receipt state and action hints never grant source-domain mutation authority; acknowledgment is independently recipient-authorized, specializing X2.
+- Receipt issuance requires write-time recipient source eligibility, and current Inbox aggregation filters by current source eligibility before counts/order/snapshot, specializing X3.
+- Historical issuance does not guarantee current Inbox visibility when the source becomes withdrawn/inactive, policy-hidden, or unreadable after membership loss.
 
 ## 6. Contract Precedence
 

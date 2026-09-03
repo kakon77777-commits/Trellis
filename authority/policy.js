@@ -80,6 +80,21 @@ function reactionDecision(request) {
   return false;
 }
 
+
+function notificationDecision(request) {
+  if (request.requested_action === 'notification.issue') {
+    return hasExplicitCapability({ ...request, capability: 'notification:issue', scope_ref: null });
+  }
+  if (request.requested_action === 'notification.ack') {
+    return Boolean(
+      request.notification_state &&
+      request.principal_actor_id &&
+      request.principal_actor_id === request.notification_state.recipient_actor_id
+    );
+  }
+  return false;
+}
+
 function evaluateAuthority(request) {
   validateAuthorityRequest(request);
   let allowed = false;
@@ -109,6 +124,9 @@ function evaluateAuthority(request) {
   } else if (request.requested_action.startsWith('reaction.')) {
     allowed = reactionDecision(request);
     policyRef = request.policy_ref ?? 'policy:reaction-on-readable-publication:v1';
+  } else if (request.requested_action.startsWith('notification.')) {
+    allowed = notificationDecision(request);
+    policyRef = request.policy_ref ?? 'policy:notification-processor:v1';
   }
 
   return createAuthorityReceipt(request, allowed ? 'allow' : 'deny', policyRef);
