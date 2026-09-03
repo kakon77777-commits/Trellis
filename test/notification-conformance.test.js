@@ -1,7 +1,7 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const packageJson=require('../package.json');
-const {INHERITORS}=require('../foundation/cross-domain-contract');
+const {CONTRACT_REGISTRY,effectiveContracts}=require('../foundation/cross-domain-contract');
 const {createTestDatabase}=require('./helpers/test-db');
 const {SQLiteEventStore}=require('../events/sqlite-event-store');
 const {evaluateAuthority}=require('../authority/policy');
@@ -26,7 +26,8 @@ function inbox(db,store,extra={}){return buildNotificationInbox({recipientActorI
 function snapshotRows(db){return db.prepare('SELECT * FROM notifications_current ORDER BY notification_id').all();}
 
 test('Notification inherits X1-X3 and release syntax scans notification modules',()=>{
- assert.deepEqual(INHERITORS.notification,['X1','X2','X3']);
+ assert.equal(CONTRACT_REGISTRY.notification.state_class,'canonical');
+  assert.deepEqual(effectiveContracts('notification'),['X1','X2','X3']);
  assert.match(packageJson.scripts.check,/notification\/\*\.js/);
 });
 

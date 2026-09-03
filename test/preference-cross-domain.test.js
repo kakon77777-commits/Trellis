@@ -1,6 +1,6 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {INHERITORS}=require('../foundation/cross-domain-contract');
+const {CONTRACT_REGISTRY,effectiveContracts}=require('../foundation/cross-domain-contract');
 const {createTestDatabase}=require('./helpers/test-db');
 const {SQLiteEventStore}=require('../events/sqlite-event-store');
 const {evaluateAuthority}=require('../authority/policy');
@@ -25,7 +25,8 @@ function setup(){
 function command(id,type,target){return{command_id:`pref:${id}`,idempotency_key:`pref:${id}`,principal_id:'principal:actor:A',owner_actor_id:'actor:A',preference_type:type,target};}
 
 test('Preference declares Foundation X1 X2 X3 inheritance',()=>{
-  assert.deepEqual(INHERITORS.preference,['X1','X2','X3']);
+  assert.equal(CONTRACT_REGISTRY.preference.state_class,'canonical');
+  assert.deepEqual(effectiveContracts('preference'),['X1','X2','X3']);
 });
 
 test('X1 owner-only Preference surface exposes no raw Preference to non-owner or representative',()=>{

@@ -1,6 +1,6 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {INHERITORS}=require('../foundation/cross-domain-contract');
+const {CONTRACT_REGISTRY,effectiveContracts}=require('../foundation/cross-domain-contract');
 const {createTestDatabase}=require('./helpers/test-db');
 const {SQLiteEventStore}=require('../events/sqlite-event-store');
 const {evaluateAuthority}=require('../authority/policy');
@@ -17,7 +17,8 @@ function rx(id,a,p,type='like',extra={}){return{command_id:`rx:${id}`,idempotenc
 function setup(){const db=createTestDatabase(),store=new SQLiteEventStore(db);for(const a of ['actor:A','actor:B','actor:C','actor:X'])reg(store,a);pub(db,store,'p1');pub(db,store,'p2');return{db,store};}
 
 test('Reaction declares Foundation X1 X2 X3 inheritance',()=>{
- assert.deepEqual(INHERITORS.reaction,['X1','X2','X3']);
+ assert.equal(CONTRACT_REGISTRY.reaction.state_class,'canonical');
+  assert.deepEqual(effectiveContracts('reaction'),['X1','X2','X3']);
 });
 
 test('X1 Reaction audience cannot be caller widened or overridden',()=>{

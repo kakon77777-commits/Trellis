@@ -1,7 +1,7 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const packageJson=require('../package.json');
-const {INHERITORS}=require('../foundation/cross-domain-contract');
+const {CONTRACT_REGISTRY,effectiveContracts}=require('../foundation/cross-domain-contract');
 const {createTestDatabase}=require('./helpers/test-db');
 const {SQLiteEventStore}=require('../events/sqlite-event-store');
 const {evaluateAuthority}=require('../authority/policy');
@@ -41,7 +41,8 @@ function setup(){
 }
 
 test('Reaction inherits X1-X3 and release syntax scans reaction modules',()=>{
- assert.deepEqual(INHERITORS.reaction,['X1','X2','X3']);
+ assert.equal(CONTRACT_REGISTRY.reaction.state_class,'canonical');
+  assert.deepEqual(effectiveContracts('reaction'),['X1','X2','X3']);
  assert.match(packageJson.scripts.check,/reaction\/\*\.js/);
 });
 

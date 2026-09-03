@@ -18,11 +18,19 @@ function setupMember(db,store,a,c){
   rebuildRelationshipProjection(db,store); return r.relationship_id;
 }
 
-test('X1-X3 contract registry declares all current inheriting domains', () => {
+test('X1-X3 contract registry declares state class and effective inheritance for current domains', () => {
   const contract = require('../foundation/cross-domain-contract');
-  assert.equal(contract.CONTRACT_REF,'trellis-foundation-cross-domain:0.1');
-  for(const domain of ['profile','relationship_surface','community','discovery','publication']) {
-    assert.deepEqual(contract.INHERITORS[domain],['X1','X2','X3']);
+  assert.equal(contract.CONTRACT_REF,'trellis-foundation-cross-domain:0.2');
+  const expected={
+    profile:'derived_projection',
+    relationship_surface:'derived_projection',
+    community:'canonical',
+    discovery:'derived_projection',
+    publication:'canonical'
+  };
+  for(const [domain,stateClass] of Object.entries(expected)) {
+    assert.equal(contract.CONTRACT_REGISTRY[domain].state_class,stateClass);
+    assert.deepEqual(contract.effectiveContracts(domain),['X1','X2','X3']);
   }
 });
 

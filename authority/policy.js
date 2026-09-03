@@ -106,6 +106,17 @@ function notificationDecision(request) {
   return false;
 }
 
+function consumptionDecision(request) {
+  if (request.requested_action !== 'consumption.record') return false;
+  return Boolean(
+    request.actor_id &&
+    request.recognized_viewer_actor_id &&
+    request.recognized_viewer_actor_id === request.actor_id &&
+    request.target_readable === true &&
+    hasExplicitCapability({ ...request, capability: 'consumption:record', scope_ref: null })
+  );
+}
+
 function evaluateAuthority(request) {
   validateAuthorityRequest(request);
   let allowed = false;
@@ -141,6 +152,9 @@ function evaluateAuthority(request) {
   } else if (request.requested_action.startsWith('preference.')) {
     allowed = preferenceDecision(request);
     policyRef = request.policy_ref ?? 'policy:preference-owner:v1';
+  } else if (request.requested_action.startsWith('consumption.')) {
+    allowed = consumptionDecision(request);
+    policyRef = request.policy_ref ?? 'policy:consumption-recorder:v1';
   }
 
   return createAuthorityReceipt(request, allowed ? 'allow' : 'deny', policyRef);

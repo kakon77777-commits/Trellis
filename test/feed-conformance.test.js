@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const packageJson = require('../package.json');
-const { INHERITORS } = require('../foundation/cross-domain-contract');
+const { CONTRACT_REGISTRY, effectiveContracts } = require('../foundation/cross-domain-contract');
 const { createTestDatabase } = require('./helpers/test-db');
 const { SQLiteEventStore } = require('../events/sqlite-event-store');
 const { evaluateAuthority } = require('../authority/policy');
@@ -48,7 +48,8 @@ function roots(feed){return feed.items.filter(i=>i.item_type==='publication').ma
 function hiddenPolicy(hidden){return value=>value.relationship_id&&hidden.has(value.relationship_id)?'deny':'allow';}
 
 test('Foundation cross-domain registry declares Feed inherits X1 X2 X3 and release syntax scans Feed modules',()=>{
-  assert.deepEqual(INHERITORS.feed,['X1','X2','X3']);
+  assert.equal(CONTRACT_REGISTRY.feed.state_class,'derived_projection');
+  assert.deepEqual(effectiveContracts('feed'),['X1','X2','X3']);
   assert.match(packageJson.scripts.check,/feed\/\*\.js/);
 });
 

@@ -1,6 +1,6 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {INHERITORS}=require('../foundation/cross-domain-contract');
+const {CONTRACT_REGISTRY,effectiveContracts}=require('../foundation/cross-domain-contract');
 const {createTestDatabase}=require('./helpers/test-db');
 const {SQLiteEventStore}=require('../events/sqlite-event-store');
 const {evaluateAuthority}=require('../authority/policy');
@@ -19,7 +19,8 @@ function pctx(db,store){return{db,eventStore:store,principalId:'principal:notifi
 function pub(db,store,id,a,extra={}){const r=createPublication({command_id:`pub:${id}`,idempotency_key:`pub:${id}`,principal_id:`principal:${a}`,publication_id:`pub:${id}`,author_actor_id:a,publication_type:'post',body:`body:${id}`,visibility:'public',audience_actor_ids:[],...extra},ctx(db,store,a));projectPublicationStream(db,store,`pub:${id}`);return{id:`pub:${id}`,eventId:r.receipt.result_event_ids[0]};}
 
 test('Notification declares Foundation X1 X2 X3 inheritance',()=>{
- assert.deepEqual(INHERITORS.notification,['X1','X2','X3']);
+ assert.equal(CONTRACT_REGISTRY.notification.state_class,'canonical');
+  assert.deepEqual(effectiveContracts('notification'),['X1','X2','X3']);
 });
 
 test('Notification issue and ack do not change Feed or Discovery when social source state is unchanged',()=>{
