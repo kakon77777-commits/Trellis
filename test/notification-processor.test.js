@@ -70,3 +70,14 @@ test('processor requires explicit notification issue capability',()=>{
  const {db,store,p1}=setup(); const reply=pub(db,store,'no-cap','actor:B',{reply_to_ref:p1.id});
  assert.throws(()=>processSourceEvent({eventId:reply.eventId,commandId:'notify:no-cap',idempotencyKey:'notify:no-cap'},processorCtx(db,store,{capabilityGrants:[]})),error=>error&&error.code==='POLICY_DENIED');
 });
+
+test('processor reports NOTIFICATION_SOURCE_EVENT_NOT_FOUND for a missing source event',()=>{
+ const {db,store}=setup();
+ assert.throws(
+   ()=>processSourceEvent(
+     {eventId:'evt:missing',commandId:'notify:missing',idempotencyKey:'notify:missing'},
+     processorCtx(db,store)
+   ),
+   error=>error&&error.code==='INVALID_TRANSITION'&&error.message==='NOTIFICATION_SOURCE_EVENT_NOT_FOUND'
+ );
+});

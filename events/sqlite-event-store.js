@@ -26,6 +26,7 @@ function receiptFromRow(row) {
 }
 
 function eventFromRow(row) {
+  if (!row) return null;
   return {
     global_offset: row.global_offset,
     event_id: row.event_id,

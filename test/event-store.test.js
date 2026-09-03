@@ -206,3 +206,11 @@ test('EventStore owns recorded_at and ignores caller-forged recorded time', () =
     '2026-09-02T10:00:00.000Z'
   );
 });
+
+test('readEvent returns null when event_id does not exist', () => {
+  const { SQLiteEventStore } = require('../events/sqlite-event-store');
+  const db = createTestDatabase();
+  const store = new SQLiteEventStore(db);
+
+  assert.equal(store.readEvent('evt:missing'), null);
+});
