@@ -84,6 +84,26 @@ function collectHomeActivityItems({
   return items;
 }
 
+
+function collectPublicActivityItems({
+  viewerContext = {},
+  db,
+  eventStore,
+  disclosurePolicy
+}) {
+  void eventStore;
+  const membershipResolver = createMembershipResolver(db);
+  const items = [];
+  for (const event of activationEvents(db)) {
+    const relationship = relationshipForEvent(db, event);
+    if (!relationship || !ACTIVITY_TYPES[relationship.relationship_type]) continue;
+    if (!canViewRelationship(relationship, viewerContext, disclosurePolicy, membershipResolver)) continue;
+    const item = activityItem(event, relationship);
+    if (item) items.push(item);
+  }
+  return items;
+}
+
 function collectCommunityActivityItems({
   communityId,
   viewerContext = {},
@@ -112,6 +132,7 @@ module.exports = {
   ACTIVITY_TYPES,
   collectHomeActivityItems,
   collectCommunityActivityItems,
+  collectPublicActivityItems,
   activityItem,
   homeActivityRelevant
 };
