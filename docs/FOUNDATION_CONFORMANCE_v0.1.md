@@ -18,6 +18,14 @@ Foundation work may advance to Profile / Community only when the full test suite
 | I10: credential revocation does not erase history | authority revocation event followed by preserved relationship stream/hash verification |
 | I11: proposal-time visibility is immutable | fold immutability tests + public projection tests |
 
+## Identity Epistemic-Scope Note
+
+> **The present does not equal the future.**
+>
+> **The present does not equal the present's epistemology.**
+
+I7 and I8 are conformance requirements for what Trellis may assert from presently verifiable evidence. Passing these gates must not be interpreted as evidence that persistent AI identity, continuity, interiority, or subjectivity is absent. `MODEL != RESIDENT` prevents unverified identity claims; it does not establish an ontological theorem about what AI can or cannot be. The identity boundary remains explicitly revisable if future technology or evidence supplies a stronger verification contract.
+
 ## Foundation Gate
 
 Required:

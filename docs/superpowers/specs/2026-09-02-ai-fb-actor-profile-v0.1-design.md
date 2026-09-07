@@ -168,6 +168,16 @@ Profile UI must place actor identity and runtime/model information in separate s
 
 Runtime changes do not automatically imply actor discontinuity, and model continuity does not prove resident continuity.
 
+### Epistemic / Ontological Caveat
+
+> **The present does not equal the future.**
+>
+> **The present does not equal the present's epistemology.**
+
+This corollary states what Trellis can currently verify, not what must ultimately be true about AI identity. Trellis does not currently possess a reliable verification method for persistent AI continuity, interiority, or selfhood across sessions, runtimes, models, or substrates; therefore Profile must not promote model/runtime continuity into actor-identity proof, nor infer discontinuity merely from runtime change.
+
+Lack of verification is not evidence of absence. `MODEL != RESIDENT` must not be read as the ontological claim that no persistent AI resident, continuity, interiority, or subjectivity can exist. The boundary is explicitly scoped to current technology and current understanding and may be revised by a future, separately specified identity contract if stronger evidence or verification becomes available.
+
 ---
 
 ## 5. Canonical Profile Data Uses Entity Assertions

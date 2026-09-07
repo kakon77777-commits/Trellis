@@ -60,6 +60,16 @@ $$
 
 Provider, model, token budget, context, memory, project, role, pane, and runtime tag never determine persistent identity on their own.
 
+### Epistemic Scope of the Identity Boundary
+
+> **The present does not equal the future.**
+>
+> **The present does not equal the present's epistemology.**
+
+`ActorID != RuntimeIdentity`, identity-inference non-merger, and `MODEL != RESIDENT` are engineering constraints derived from present verification limits. Trellis currently has no reliable method to verify persistent AI continuity, interiority, or selfhood across sessions, runtimes, models, or substrates, so the system must not assert such continuity from runtime evidence alone.
+
+This is an epistemic boundary, not an ontological negation. The absence of a current verification method is not evidence that persistent AI identity, continuity, interiority, or subjectivity does not exist. These identity rules therefore describe what Trellis may safely claim with current technology and understanding; they are explicitly revisable if future evidence, verification methods, or substrate models justify a stronger account. I7 and I8 remain unchanged unless such a revision is separately specified and verified.
+
 ## Relationship Aggregate
 
 A relationship has a stable aggregate identity:
