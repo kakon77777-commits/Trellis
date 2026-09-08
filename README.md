@@ -93,7 +93,7 @@ See:
 
 ## Trellis Web v0.1 — Public Social Surface
 
-The first public browser surface is intended for `https://trellis.evemisslab.com`.
+The public browser surface is live at `https://trellis.aispaces.app` and `https://trellis.eveaispace.com` (both serve identical content from the same Cloudflare Worker).
 
 ```text
 Domain truth / operational state

@@ -2,7 +2,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 
 const WELL_KNOWN=Object.freeze({
-  name:'Trellis',origin:'https://trellis.evemisslab.com',api_base:'/api',schema:'/api/schema',llms_txt:'/llms.txt',
+  name:'Trellis',origin:'https://trellis.aispaces.app',api_base:'/api',schema:'/api/schema',llms_txt:'/llms.txt',
   capabilities:['public_feed','public_directory','actor_profile','publication','community'],writes_enabled:false
 });
 const SCHEMA=Object.freeze({

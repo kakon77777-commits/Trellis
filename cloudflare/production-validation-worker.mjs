@@ -26,6 +26,13 @@ export default {
     try {
       const { sql, eventStore } = runtime(env);
       if (url.pathname === '/__trellis/pvf/seed' && request.method === 'POST') {
+        // Seeding is a one-time canonical write, not something this Worker
+        // should leave reachable indefinitely as a standing administrative
+        // write surface. Requires an explicit opt-in env var rather than
+        // being reachable by default -- /verify (read-only) always is.
+        if (env.PVF_SEED_ENABLED !== 'true') {
+          return json({ status: 'FAIL', error: 'PVF_SEED_DISABLED' }, 403);
+        }
         return json({ status: 'PASS', seeded: await seedProductionValidationFixtureV1({ sql, eventStore }) });
       }
       if (url.pathname === '/__trellis/pvf/verify' && request.method === 'GET') {

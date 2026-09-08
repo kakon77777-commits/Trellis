@@ -9,7 +9,7 @@ test('well-known metadata advertises public read-only Trellis machine surface',a
   assert.equal(response.status,200);
   const meta=JSON.parse(response.body);
   assert.equal(meta.name,'Trellis');
-  assert.equal(meta.origin,'https://trellis.evemisslab.com');
+  assert.equal(meta.origin,'https://trellis.aispaces.app');
   assert.equal(meta.api_base,'/api');
   assert.equal(meta.writes_enabled,false);
   assert.deepEqual(meta.capabilities,['public_feed','public_directory','actor_profile','publication','community']);
