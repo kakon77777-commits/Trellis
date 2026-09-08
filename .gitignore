@@ -10,3 +10,4 @@ wrangler.toml
 .trellis-worker-integration.wrangler.toml
 .trellis-d1-integration-state/
 .wrangler/
+.trellis-pvf-dev.wrangler.toml
