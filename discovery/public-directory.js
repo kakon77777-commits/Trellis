@@ -6,14 +6,14 @@ const { buildCommunitySurface } = require('../community/read-service');
 const PUBLIC_DIRECTORY_ALGORITHM_REF = 'trellis-directory:public:v1';
 const PUBLIC_DIRECTORY_PROJECTION_VERSION = 'trellis-directory:0.1';
 
-function registeredEntityIds(db) {
-  return db.prepare(`
+async function registeredEntityIds(db) {
+  return (await db.all(`
     SELECT DISTINCT stream_id
     FROM canonical_events
     WHERE stream_type='entity'
       AND event_type='entity.registered'
     ORDER BY stream_id
-  `).all().map(row => row.stream_id);
+  `)).map(row => row.stream_id);
 }
 
 function hasPublicPresentation(profile) {
@@ -62,12 +62,12 @@ function computeDirectorySnapshotRef({ actors, communities }) {
   }), 'utf8').digest('hex');
 }
 
-function buildPublicDirectory({ db, eventStore, disclosurePolicy }) {
+async function buildPublicDirectory({ db, eventStore, disclosurePolicy }) {
   const actors = [];
   const communities = [];
-  for (const entityId of registeredEntityIds(db)) {
+  for (const entityId of await registeredEntityIds(db)) {
     if (entityId.startsWith('actor:')) {
-      const profile = buildActorProfile({
+      const profile = await buildActorProfile({
         actorId: entityId,
         viewerContext: {},
         eventStore,
@@ -78,7 +78,7 @@ function buildPublicDirectory({ db, eventStore, disclosurePolicy }) {
       continue;
     }
     if (entityId.startsWith('community:')) {
-      const surface = buildCommunitySurface({
+      const surface = await buildCommunitySurface({
         communityId: entityId,
         viewerContext: {},
         db,

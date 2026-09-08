@@ -5,11 +5,11 @@ const { createHttpApp, dispatchRequest } = require('../http/app');
 
 function req(url='/', headers={}, method='GET'){return {url,headers,method};}
 
-test('public request context remains anonymous',()=>{
+test('public request context remains anonymous',async ()=>{
   assert.deepEqual(createPublicRequestContext(req('/')), {viewerContext:{}});
 });
 
-test('public request context rejects client-claimed actor identity in query/header/cookie',()=>{
+test('public request context rejects client-claimed actor identity in query/header/cookie',async ()=>{
   for(const r of [
     req('/?viewer_actor_id=actor:A'),
     req('/?subject_actor_id=actor:A'),

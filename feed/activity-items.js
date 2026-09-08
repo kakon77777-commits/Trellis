@@ -6,21 +6,21 @@ const ACTIVITY_TYPES = Object.freeze({
   collaborates_with: 'collaboration_started'
 });
 
-function relationshipForEvent(db, event) {
-  return db.prepare(`
+async function relationshipForEvent(db, event) {
+  return await db.first(`
     SELECT * FROM relationships_current
     WHERE relationship_id = ?
-  `).get(event.stream_id) ?? null;
+  `,[event.stream_id]);
 }
 
-function activationEvents(db) {
-  return db.prepare(`
+async function activationEvents(db) {
+  return await db.all(`
     SELECT event_id, stream_id, recorded_at, global_offset
     FROM canonical_events
     WHERE stream_type='relationship'
       AND event_type='relationship.activated'
     ORDER BY global_offset ASC
-  `).all();
+  `);
 }
 
 function activityItem(event, relationship) {
@@ -62,7 +62,7 @@ function homeActivityRelevant(relationship, sourceGraph, subjectActorId) {
   return false;
 }
 
-function collectHomeActivityItems({
+async function collectHomeActivityItems({
   sourceGraph,
   subjectActorId,
   viewerContext = {},
@@ -71,10 +71,10 @@ function collectHomeActivityItems({
   disclosurePolicy
 }) {
   void eventStore;
-  const membershipResolver = createMembershipResolver(db);
+  const membershipResolver = await createMembershipResolver(db);
   const items = [];
-  for (const event of activationEvents(db)) {
-    const relationship = relationshipForEvent(db, event);
+  for (const event of await activationEvents(db)) {
+    const relationship = await relationshipForEvent(db, event);
     if (!relationship || !ACTIVITY_TYPES[relationship.relationship_type]) continue;
     if (!canViewRelationship(relationship, viewerContext, disclosurePolicy, membershipResolver)) continue;
     if (!homeActivityRelevant(relationship, sourceGraph, subjectActorId)) continue;
@@ -85,17 +85,17 @@ function collectHomeActivityItems({
 }
 
 
-function collectPublicActivityItems({
+async function collectPublicActivityItems({
   viewerContext = {},
   db,
   eventStore,
   disclosurePolicy
 }) {
   void eventStore;
-  const membershipResolver = createMembershipResolver(db);
+  const membershipResolver = await createMembershipResolver(db);
   const items = [];
-  for (const event of activationEvents(db)) {
-    const relationship = relationshipForEvent(db, event);
+  for (const event of await activationEvents(db)) {
+    const relationship = await relationshipForEvent(db, event);
     if (!relationship || !ACTIVITY_TYPES[relationship.relationship_type]) continue;
     if (!canViewRelationship(relationship, viewerContext, disclosurePolicy, membershipResolver)) continue;
     const item = activityItem(event, relationship);
@@ -104,7 +104,7 @@ function collectPublicActivityItems({
   return items;
 }
 
-function collectCommunityActivityItems({
+async function collectCommunityActivityItems({
   communityId,
   viewerContext = {},
   db,
@@ -112,10 +112,10 @@ function collectCommunityActivityItems({
   disclosurePolicy
 }) {
   void eventStore;
-  const membershipResolver = createMembershipResolver(db);
+  const membershipResolver = await createMembershipResolver(db);
   const items = [];
-  for (const event of activationEvents(db)) {
-    const relationship = relationshipForEvent(db, event);
+  for (const event of await activationEvents(db)) {
+    const relationship = await relationshipForEvent(db, event);
     if (!relationship || !ACTIVITY_TYPES[relationship.relationship_type]) continue;
     const inCommunity = relationship.relationship_type === 'member_of'
       ? relationship.target_entity_id === communityId

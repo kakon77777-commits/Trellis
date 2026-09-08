@@ -7,9 +7,9 @@ const { buildDiscoverySurface }=require('../discovery/read-service');
 const { renderDiscoveryJson }=require('../discovery/render-json');
 const { renderDiscoveryHtml }=require('../discovery/render-html');
 
-test('Discovery surface returns Actor and Community candidates from one viewer-relative snapshot',()=>{
-  const {db,store}=setupDiscoverySystem();
-  const surface=buildDiscoverySurface({ subjectActorId:'actor:A', viewerContext:{viewer_actor_id:'actor:A'}, db, eventStore:store });
+test('Discovery surface returns Actor and Community candidates from one viewer-relative snapshot',async ()=>{
+  const {db,store}=(await setupDiscoverySystem());
+  const surface=(await buildDiscoverySurface({ subjectActorId:'actor:A', viewerContext:{viewer_actor_id:'actor:A'}, db, eventStore:store }));
   assert.equal(surface.subject_actor_id,'actor:A');
   assert.equal(surface.viewer_scope,'self');
   assert.equal(surface.actor_discovery.algorithm_ref,'trellis-discovery:actor-graph:v1');
@@ -21,17 +21,17 @@ test('Discovery surface returns Actor and Community candidates from one viewer-r
   assert.ok(surface.snapshot_ref);
 });
 
-test('representative viewer computes discovery for represented subject rather than itself',()=>{
-  const {db,store}=setupDiscoverySystem();
-  const surface=buildDiscoverySurface({ subjectActorId:'actor:A', viewerContext:{viewer_actor_id:'actor:R',represents_actor_ids:['actor:A']}, db, eventStore:store });
+test('representative viewer computes discovery for represented subject rather than itself',async ()=>{
+  const {db,store}=(await setupDiscoverySystem());
+  const surface=(await buildDiscoverySurface({ subjectActorId:'actor:A', viewerContext:{viewer_actor_id:'actor:R',represents_actor_ids:['actor:A']}, db, eventStore:store }));
   assert.equal(surface.subject_actor_id,'actor:A');
   assert.equal(surface.viewer_scope,'representative');
   assert.deepEqual(surface.actor_discovery.candidates.map(x=>x.actor_id),['actor:B']);
 });
 
-test('HTML and JSON render the same filtered Discovery surface without hidden ids',()=>{
-  const {db,store}=setupDiscoverySystem({candidateName:'<script>alert(1)</script>'});
-  const surface=buildDiscoverySurface({ subjectActorId:'actor:A', viewerContext:{viewer_actor_id:'actor:A'}, db, eventStore:store });
+test('HTML and JSON render the same filtered Discovery surface without hidden ids',async ()=>{
+  const {db,store}=(await setupDiscoverySystem({candidateName:'<script>alert(1)</script>'}));
+  const surface=(await buildDiscoverySurface({ subjectActorId:'actor:A', viewerContext:{viewer_actor_id:'actor:A'}, db, eventStore:store }));
   const json=renderDiscoveryJson(surface);
   const html=renderDiscoveryHtml(surface);
   assert.deepEqual(JSON.parse(json),surface);
@@ -44,7 +44,7 @@ test('HTML and JSON render the same filtered Discovery surface without hidden id
   assert.doesNotMatch(html,/trusted|safe recommendation/i);
 });
 
-test('Discovery renderers are presentation-only and do not import storage or EventStore',()=>{
+test('Discovery renderers are presentation-only and do not import storage or EventStore',async ()=>{
   for(const file of ['render-html.js','render-json.js']){
     const source=fs.readFileSync(path.join(__dirname,'..','discovery',file),'utf8');
     assert.doesNotMatch(source,/sqlite|event-store|SQLiteEventStore|canonical_events/);

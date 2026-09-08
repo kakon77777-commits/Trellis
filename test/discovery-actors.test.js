@@ -37,7 +37,7 @@ function member(id, actorId, communityId) {
   };
 }
 
-function snapshot() {
+async function snapshot() {
   return {
     subject_actor_id: 'actor:A',
     viewer_scope: 'self',
@@ -57,15 +57,15 @@ function snapshot() {
       rel('rel:xc', 'actor:X', 'actor:C'),
       rel('rel:ad', 'actor:A', 'actor:D'),
       rel('rel:xd', 'actor:X', 'actor:D'),
-      member('rel:a-c1', 'actor:A', 'community:C1'),
-      member('rel:b-c1', 'actor:B', 'community:C1'),
-      member('rel:c-c1', 'actor:C', 'community:C1')
+      (await member('rel:a-c1', 'actor:A', 'community:C1')),
+      (await member('rel:b-c1', 'actor:B', 'community:C1')),
+      (await member('rel:c-c1', 'actor:C', 'community:C1'))
     ]
   };
 }
 
-test('Actor discovery scores visible mutuals shared communities and two-hop paths', () => {
-  const candidates = discoverActors(snapshot());
+test('Actor discovery scores visible mutuals shared communities and two-hop paths', async () => {
+  const candidates = discoverActors((await snapshot()));
   const b = candidates.find(candidate => candidate.actor_id === 'actor:B');
   assert.ok(b);
   assert.equal(b.algorithm_ref, ACTOR_DISCOVERY_ALGORITHM_REF);
@@ -83,19 +83,19 @@ test('Actor discovery scores visible mutuals shared communities and two-hop path
   assert.equal(b.profile.actor_id, 'actor:B');
 });
 
-test('self and already directly related Actors are excluded', () => {
-  const ids = discoverActors(snapshot()).map(candidate => candidate.actor_id);
+test('self and already directly related Actors are excluded', async () => {
+  const ids = discoverActors((await snapshot())).map(candidate => candidate.actor_id);
   assert.equal(ids.includes('actor:A'), false);
   assert.equal(ids.includes('actor:D'), false);
 });
 
-test('same-score Actor candidates use stable actor id tie breaking', () => {
-  const ids = discoverActors(snapshot()).map(candidate => candidate.actor_id);
+test('same-score Actor candidates use stable actor id tie breaking', async () => {
+  const ids = discoverActors((await snapshot())).map(candidate => candidate.actor_id);
   assert.deepEqual(ids, ['actor:B', 'actor:C']);
 });
 
-test('multiple visible edge-pairs increase path count without duplicating mutual actor count', () => {
-  const s = snapshot();
+test('multiple visible edge-pairs increase path count without duplicating mutual actor count', async () => {
+  const s = (await snapshot());
   s.relationships.push(rel('rel:ax2', 'actor:X', 'actor:A', 'reviews'));
   const b = discoverActors(s).find(candidate => candidate.actor_id === 'actor:B');
   assert.deepEqual(b.score_components, {

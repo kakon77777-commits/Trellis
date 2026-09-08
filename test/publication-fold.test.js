@@ -27,7 +27,7 @@ function event(type, seq, payload = {}) {
   return { event_id: `evt:${seq}`, event_type: type, stream_seq: seq, payload };
 }
 
-test('fold reconstructs create, revise, withdraw lifecycle', () => {
+test('fold reconstructs create, revise, withdraw lifecycle', async () => {
   const { foldPublication } = require('../publication/fold');
   const state = foldPublication([
     created(),
@@ -41,7 +41,7 @@ test('fold reconstructs create, revise, withdraw lifecycle', () => {
   assert.equal(state.author_actor_id, 'actor:A');
 });
 
-test('author type scope visibility audience and refs are immutable', () => {
+test('author type scope visibility audience and refs are immutable', async () => {
   const { foldPublication } = require('../publication/fold');
   for (const payload of [
     { author_actor_id: 'actor:B' },
@@ -59,7 +59,7 @@ test('author type scope visibility audience and refs are immutable', () => {
   }
 });
 
-test('withdrawn publication cannot be revised again', () => {
+test('withdrawn publication cannot be revised again', async () => {
   const { foldPublication } = require('../publication/fold');
   assert.throws(() => foldPublication([
     created(),
@@ -68,7 +68,7 @@ test('withdrawn publication cannot be revised again', () => {
   ]), error => error && error.code === 'INVALID_TRANSITION');
 });
 
-test('second creation on same aggregate is rejected', () => {
+test('second creation on same aggregate is rejected', async () => {
   const { foldPublication } = require('../publication/fold');
   assert.throws(() => foldPublication([
     created(),
@@ -76,7 +76,7 @@ test('second creation on same aggregate is rejected', () => {
   ]), error => error && error.code === 'INVALID_TRANSITION');
 });
 
-test('revision sequence must be contiguous and supersede current revision', () => {
+test('revision sequence must be contiguous and supersede current revision', async () => {
   const { foldPublication } = require('../publication/fold');
   assert.throws(() => foldPublication([
     created(),
@@ -88,7 +88,7 @@ test('revision sequence must be contiguous and supersede current revision', () =
   ]), error => error && error.code === 'INVALID_TRANSITION');
 });
 
-test('creation validation forbids reply and quote together', () => {
+test('creation validation forbids reply and quote together', async () => {
   const { validatePublicationCreationPayload } = require('../publication/schemas');
   assert.throws(() => validatePublicationCreationPayload(created({
     reply_to_ref: 'pub:P',
@@ -96,7 +96,7 @@ test('creation validation forbids reply and quote together', () => {
   }).payload), /PUBLICATION_REFERENCE_CONFLICT/);
 });
 
-test('participants requires sorted unique audience and scope_members requires scope', () => {
+test('participants requires sorted unique audience and scope_members requires scope', async () => {
   const { validatePublicationCreationPayload } = require('../publication/schemas');
   assert.throws(() => validatePublicationCreationPayload(created({ visibility: 'participants', audience_actor_ids: [] }).payload), /PUBLICATION_PARTICIPANTS_REQUIRED/);
   assert.throws(() => validatePublicationCreationPayload(created({ visibility: 'participants', audience_actor_ids: ['actor:B', 'actor:A'] }).payload), /PUBLICATION_AUDIENCE_NOT_CANONICAL/);

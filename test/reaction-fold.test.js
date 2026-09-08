@@ -18,13 +18,13 @@ const created = event('reaction.created', 1, {
   reaction_type: 'like'
 });
 
-test('reaction ID is deterministic per actor-publication pair', () => {
+test('reaction ID is deterministic per actor-publication pair', async () => {
   assert.equal(deriveReactionId('actor:B', 'pub:P'), deriveReactionId('actor:B', 'pub:P'));
   assert.notEqual(deriveReactionId('actor:B', 'pub:P'), deriveReactionId('actor:C', 'pub:P'));
   assert.notEqual(deriveReactionId('actor:B', 'pub:P'), deriveReactionId('actor:B', 'pub:Q'));
 });
 
-test('created reaction becomes active with immutable identity and current type', () => {
+test('created reaction becomes active with immutable identity and current type', async () => {
   const state = foldReaction([created]);
   assert.equal(state.lifecycle, 'active');
   assert.equal(state.reaction_type, 'like');
@@ -36,21 +36,21 @@ test('created reaction becomes active with immutable identity and current type',
   assert.equal(state.stream_version, 1);
 });
 
-test('reaction type changes append within same active aggregate', () => {
+test('reaction type changes append within same active aggregate', async () => {
   const state = foldReaction([created, event('reaction.changed', 2, { reaction_type: 'love' })]);
   assert.equal(state.lifecycle, 'active');
   assert.equal(state.reaction_type, 'love');
   assert.equal(state.reaction_id, created.payload.reaction_id);
 });
 
-test('withdraw clears current type and preserves aggregate identity', () => {
+test('withdraw clears current type and preserves aggregate identity', async () => {
   const state = foldReaction([created, event('reaction.withdrawn', 2, { reason: 'actor_withdrawn' })]);
   assert.equal(state.lifecycle, 'withdrawn');
   assert.equal(state.reaction_type, null);
   assert.equal(state.reaction_id, created.payload.reaction_id);
 });
 
-test('restore reactivates same aggregate with explicitly supplied type', () => {
+test('restore reactivates same aggregate with explicitly supplied type', async () => {
   const state = foldReaction([
     created,
     event('reaction.withdrawn', 2, {}),
@@ -61,14 +61,14 @@ test('restore reactivates same aggregate with explicitly supplied type', () => {
   assert.equal(state.reaction_id, created.payload.reaction_id);
 });
 
-test('invalid lifecycle transitions are rejected', () => {
+test('invalid lifecycle transitions are rejected', async () => {
   assert.throws(() => foldReaction([created, event('reaction.created', 2, created.payload)]), /REACTION_ALREADY_CREATED/);
   assert.throws(() => foldReaction([created, event('reaction.withdrawn', 2), event('reaction.changed', 3, { reaction_type: 'love' })]), /REACTION_CANNOT_CHANGE/);
   assert.throws(() => foldReaction([created, event('reaction.withdrawn', 2), event('reaction.withdrawn', 3)]), /REACTION_CANNOT_WITHDRAW/);
   assert.throws(() => foldReaction([created, event('reaction.restored', 2, { reaction_type: 'love' })]), /REACTION_CANNOT_RESTORE/);
 });
 
-test('immutable identity and audience fields cannot change after creation', () => {
+test('immutable identity and audience fields cannot change after creation', async () => {
   for (const [field, value] of [
     ['actor_id', 'actor:C'], ['publication_id', 'pub:Q'], ['scope_ref', 'community:D'],
     ['visibility', 'public'], ['audience_actor_ids', ['actor:B']], ['reaction_policy_ref', 'other']
@@ -80,7 +80,7 @@ test('immutable identity and audience fields cannot change after creation', () =
   }
 });
 
-test('unknown event and invalid reaction type are rejected', () => {
+test('unknown event and invalid reaction type are rejected', async () => {
   assert.throws(() => foldReaction([created, event('reaction.unknown', 2)]), /UNKNOWN_REACTION_EVENT/);
   assert.throws(() => foldReaction([event('reaction.created', 1, { ...created.payload, reaction_type: 'bookmark' })]), /REACTION_TYPE_INVALID/);
 });

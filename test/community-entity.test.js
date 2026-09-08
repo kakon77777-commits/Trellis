@@ -12,21 +12,21 @@ function context() {
   return { db, eventStore: new SQLiteEventStore(db), authorize: evaluateAuthority };
 }
 
-test('registerActor remains an actor-capable actor adapter', () => {
+test('registerActor remains an actor-capable actor adapter', async () => {
   const ctx = context();
-  const result = registerActor({
+  const result = (await registerActor({
     command_id: 'cmd:actor-a', idempotency_key: 'idem:actor-a', principal_id: 'principal:a', entity_id: 'actor:A'
-  }, ctx);
+  }, ctx));
   const state = foldEntity(ctx.eventStore.readStream('entity', result.entity_id));
   assert.equal(state.entity_kind, 'actor');
   assert.equal(state.actor_capable, true);
 });
 
-test('createCommunity registers an actor-capable community with stable community identity', () => {
+test('createCommunity registers an actor-capable community with stable community identity', async () => {
   const ctx = context();
-  const result = createCommunity({
+  const result = (await createCommunity({
     command_id: 'cmd:community-c', idempotency_key: 'idem:community-c', principal_id: 'principal:creator', community_id: 'community:C', name: 'Research Lab'
-  }, ctx);
+  }, ctx));
   assert.equal(result.community_id, 'community:C');
   const events = ctx.eventStore.readStream('entity', 'community:C');
   const state = foldEntity(events);
@@ -38,17 +38,17 @@ test('createCommunity registers an actor-capable community with stable community
   assert.equal(events.some(e => /role|capability|membership/.test(e.event_type)), false);
 });
 
-test('community identity is not derived from display name or runtime', () => {
+test('community identity is not derived from display name or runtime', async () => {
   const ctx = context();
-  const first = createCommunity({
+  const first = (await createCommunity({
     command_id: 'cmd:c1', idempotency_key: 'idem:c1', principal_id: 'principal:x', community_id: 'community:C1', name: 'Same Name', runtime_tag: 'runtime:same'
-  }, ctx);
-  const second = createCommunity({
+  }, ctx));
+  const second = (await createCommunity({
     command_id: 'cmd:c2', idempotency_key: 'idem:c2', principal_id: 'principal:x', community_id: 'community:C2', name: 'Same Name', runtime_tag: 'runtime:same'
-  }, ctx);
+  }, ctx));
   assert.notEqual(first.community_id, second.community_id);
 });
 
-test('registerEntity exists as generic canonical registration entrypoint', () => {
+test('registerEntity exists as generic canonical registration entrypoint', async () => {
   assert.equal(typeof registerEntity, 'function');
 });

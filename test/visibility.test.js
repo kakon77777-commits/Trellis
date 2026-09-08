@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const cases = require('./fixtures/visibility-cases.json');
 
-test('visibility resolves once from override or policy default', () => {
+test('visibility resolves once from override or policy default', async () => {
   const { resolveVisibility } = require('../relationship/taxonomy');
   for (const entry of cases) {
     const policy = { visibility: { default: entry.default, allowed: entry.allowed } };
@@ -20,7 +20,7 @@ test('visibility resolves once from override or policy default', () => {
   }
 });
 
-test('scope does not participate in visibility resolution', () => {
+test('scope does not participate in visibility resolution', async () => {
   const { resolveVisibility } = require('../relationship/taxonomy');
   const policy = {
     visibility: { default: 'participants', allowed: ['participants', 'private'] }
@@ -32,7 +32,7 @@ test('scope does not participate in visibility resolution', () => {
   }), 'participants');
 });
 
-test('public graph never widens non-public canonical visibility', () => {
+test('public graph never widens non-public canonical visibility', async () => {
   const { listPublicRelationships } = require('../projections/public-graph');
   const { createTestDatabase } = require('./helpers/test-db');
   const db = createTestDatabase();
@@ -53,11 +53,11 @@ test('public graph never widens non-public canonical visibility', () => {
   insert.run('rel:participants', 'participants');
   insert.run('rel:private', 'private');
 
-  const rows = listPublicRelationships(db, () => 'allow');
+  const rows = (await listPublicRelationships(db, () => 'allow'));
   assert.deepEqual(rows.map(row => row.relationship_id), ['rel:public']);
 });
 
-test('current disclosure policy may narrow public visibility but never widen it', () => {
+test('current disclosure policy may narrow public visibility but never widen it', async () => {
   const { listPublicRelationships } = require('../projections/public-graph');
   const { createTestDatabase } = require('./helpers/test-db');
   const db = createTestDatabase();
@@ -74,6 +74,6 @@ test('current disclosure policy may narrow public visibility but never widen it'
       NULL, 0, 0, 'evt:1', 'evt:1', 1, 'test')
   `).run();
 
-  assert.equal(listPublicRelationships(db, () => 'deny').length, 0);
-  assert.equal(listPublicRelationships(db, () => 'allow').length, 1);
+  assert.equal((await listPublicRelationships(db, () => 'deny')).length, 0);
+  assert.equal((await listPublicRelationships(db, () => 'allow')).length, 1);
 });

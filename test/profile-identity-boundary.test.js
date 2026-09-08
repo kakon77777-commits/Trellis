@@ -7,29 +7,29 @@ const { registerActor } = require('../entity/service');
 const { setDisplayName } = require('../profile/product-commands');
 const { buildActorProfile } = require('../profile/read-service');
 
-function setup() {
+async function setup() {
   const db = createTestDatabase();
   const eventStore = new SQLiteEventStore(db, { now: () => '2026-09-02T09:30:00.000Z' });
-  registerActor({
+  (await registerActor({
     command_id: 'reg-a', idempotency_key: 'reg-a', principal_id: 'principal:A', entity_id: 'actor:A',
     runtime_tag: 'pane:42', model: 'gpt-x', provider: 'provider-x'
-  }, { eventStore, authorize: evaluateAuthority });
-  setDisplayName({
+  }, { eventStore, authorize: evaluateAuthority }));
+  (await setDisplayName({
     command_id: 'name-a', idempotency_key: 'name-a', principal_id: 'principal:A', actor_id: 'actor:A', value: 'Aletheia'
   }, {
     eventStore, authorize: evaluateAuthority, principalActorId: 'actor:A', evaluatedAt: '2026-09-02T09:30:01.000Z'
-  });
+  }));
   return { db, eventStore };
 }
 
-test('machine profile keeps stable actor identity separate from runtime metadata', () => {
-  const env = setup();
-  const profile = buildActorProfile({
+test('machine profile keeps stable actor identity separate from runtime metadata', async () => {
+  const env = (await setup());
+  const profile = (await buildActorProfile({
     actorId: 'actor:A',
     viewerContext: { viewer_actor_id: 'actor:A', represents_actor_ids: [] },
     eventStore: env.eventStore,
     db: env.db
-  });
+  }));
 
   assert.equal(profile.actor_id, 'actor:A');
   assert.equal(profile.entity_kind, 'actor');

@@ -8,8 +8,8 @@ const {
   terminateRelationship
 } = require('../relationship/service');
 
-function loadCommunityState(eventStore, communityId) {
-  const history = eventStore.readStream('entity', communityId);
+async function loadCommunityState(eventStore, communityId) {
+  const history = await eventStore.readStream('entity', communityId);
   const entity = foldEntity(history);
   if (entity.lifecycle !== 'active' || entity.entity_kind !== 'community') {
     throw new InvalidTransitionError('COMMUNITY_NOT_ACTIVE');
@@ -17,10 +17,10 @@ function loadCommunityState(eventStore, communityId) {
   return { history, discoverability: resolveCommunityDiscoverability(history) };
 }
 
-function requestMembership(command, context) {
-  const { discoverability } = loadCommunityState(context.eventStore, command.community_id);
+async function requestMembership(command, context) {
+  const { discoverability } = await loadCommunityState(context.eventStore, command.community_id);
   const defaultVisibility = discoverability === 'private' ? 'scope_members' : 'public';
-  return proposeRelationship({
+  return await proposeRelationship({
     ...command,
     source_entity_id: command.actor_id,
     target_entity_id: command.community_id,
@@ -30,8 +30,8 @@ function requestMembership(command, context) {
   }, context);
 }
 
-function loadMembership(command, context) {
-  const history = context.eventStore.readStream('relationship', command.relationship_id);
+async function loadMembership(command, context) {
+  const history = await context.eventStore.readStream('relationship', command.relationship_id);
   const state = foldRelationship(history);
   if (
     state.relationship_type !== 'member_of' ||
@@ -43,24 +43,24 @@ function loadMembership(command, context) {
   return state;
 }
 
-function approveMembership(command, context) {
-  loadMembership(command, context);
-  return activateRelationship(command, context);
+async function approveMembership(command, context) {
+  await loadMembership(command, context);
+  return await activateRelationship(command, context);
 }
 
-function leaveCommunity(command, context) {
-  const state = loadMembership(command, context);
+async function leaveCommunity(command, context) {
+  const state = await loadMembership(command, context);
   if (state.source_entity_id !== command.actor_id) throw new InvalidTransitionError('MEMBERSHIP_ACTOR_MISMATCH');
-  return terminateRelationship({ ...command, reason: command.reason ?? 'withdrawn' }, context);
+  return await terminateRelationship({ ...command, reason: command.reason ?? 'withdrawn' }, context);
 }
 
-function removeMember(command, context) {
-  loadMembership(command, context);
+async function removeMember(command, context) {
+  await loadMembership(command, context);
   if (context.principalActorId !== command.community_id) {
     const { PolicyDeniedError } = require('../core/errors');
     throw new PolicyDeniedError();
   }
-  return terminateRelationship({ ...command, reason: command.reason ?? 'revoked' }, context);
+  return await terminateRelationship({ ...command, reason: command.reason ?? 'revoked' }, context);
 }
 
 module.exports = { requestMembership, approveMembership, leaveCommunity, removeMember };

@@ -16,7 +16,7 @@ function sourceRelationshipView(row) {
   };
 }
 
-function buildFeedSourceGraph({
+async function buildFeedSourceGraph({
   subjectActorId,
   viewerContext = {},
   db,
@@ -25,14 +25,14 @@ function buildFeedSourceGraph({
 }) {
   void eventStore;
   const { viewer_scope } = authorizeFeedSubject(subjectActorId, viewerContext);
-  const membershipResolver = createMembershipResolver(db);
-  const rows = db.prepare(`
+  const membershipResolver = await createMembershipResolver(db);
+  const rows = await db.all(`
     SELECT * FROM relationships_current
     WHERE source_entity_id = ?
       AND lifecycle = 'active'
       AND relationship_type IN ('follows', 'subscribes_to', 'member_of')
     ORDER BY relationship_id
-  `).all(subjectActorId);
+  `,[subjectActorId]);
 
   const visible = rows.filter(row =>
     canViewRelationship(row, viewerContext, disclosurePolicy, membershipResolver)

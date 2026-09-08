@@ -19,7 +19,7 @@ function createdPayload(type='bookmark_publication', target={ publication_id:'pu
   };
 }
 
-test('preference ID is deterministic per owner-type-target tuple', () => {
+test('preference ID is deterministic per owner-type-target tuple', async () => {
   const target={publication_id:'pub:P'};
   const id=derivePreferenceId('actor:A','bookmark_publication',target);
   assert.equal(id,derivePreferenceId('actor:A','bookmark_publication',target));
@@ -27,7 +27,7 @@ test('preference ID is deterministic per owner-type-target tuple', () => {
   assert.notEqual(id,derivePreferenceId('actor:B','bookmark_publication',target));
 });
 
-test('preference target normalization is canonical and typed', () => {
+test('preference target normalization is canonical and typed', async () => {
   assert.deepEqual(normalizePreferenceTarget('bookmark_publication',{publication_id:'pub:P'}),{target_kind:'publication',target_ref:'pub:P',target_item_kind:null});
   assert.deepEqual(normalizePreferenceTarget('not_interested_publication',{publication_id:'pub:P'}),{target_kind:'publication',target_ref:'pub:P',target_item_kind:null});
   assert.deepEqual(normalizePreferenceTarget('mute_actor',{actor_id:'actor:B'}),{target_kind:'actor',target_ref:'actor:B',target_item_kind:null});
@@ -35,7 +35,7 @@ test('preference target normalization is canonical and typed', () => {
   assert.throws(()=>normalizePreferenceTarget('dismiss_feed_item',{item_kind:'other',source_ref:'x'}),/PREFERENCE_FEED_ITEM_KIND_INVALID/);
 });
 
-test('preference lifecycle is created to withdrawn to restored on same aggregate', () => {
+test('preference lifecycle is created to withdrawn to restored on same aggregate', async () => {
   const payload=createdPayload();
   const active=foldPreference([event('preference.created',1,payload)]);
   assert.equal(active.lifecycle,'active');
@@ -47,7 +47,7 @@ test('preference lifecycle is created to withdrawn to restored on same aggregate
   assert.equal(restored.preference_id,payload.preference_id);
 });
 
-test('preference identity fields are immutable after creation', () => {
+test('preference identity fields are immutable after creation', async () => {
   const payload=createdPayload();
   for (const [field,value] of [
     ['owner_actor_id','actor:B'],['preference_type','mute_actor'],['target_kind','actor'],['target_ref','actor:B'],['target_item_kind','publication'],['preference_policy_ref','other']
@@ -56,7 +56,7 @@ test('preference identity fields are immutable after creation', () => {
   }
 });
 
-test('preference creation schema has no visibility scope or audience override', () => {
+test('preference creation schema has no visibility scope or audience override', async () => {
   const payload=createdPayload();
   assert.doesNotThrow(()=>validatePreferenceCreationPayload(payload));
   for (const field of ['visibility','scope_ref','audience_actor_ids']) {
@@ -64,7 +64,7 @@ test('preference creation schema has no visibility scope or audience override', 
   }
 });
 
-test('invalid lifecycle transitions and unknown events are rejected', () => {
+test('invalid lifecycle transitions and unknown events are rejected', async () => {
   const payload=createdPayload();
   assert.throws(()=>foldPreference([event('preference.created',1,payload),event('preference.created',2,payload)]),/PREFERENCE_ALREADY_CREATED/);
   assert.throws(()=>foldPreference([event('preference.created',1,payload),event('preference.restored',2,{})]),/PREFERENCE_CANNOT_RESTORE/);

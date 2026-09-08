@@ -43,7 +43,7 @@ function appendSingle(store) {
   });
 }
 
-test('verifyHashChain accepts an untampered stream', () => {
+test('verifyHashChain accepts an untampered stream', async () => {
   const db = createTestDatabase();
   const store = new SQLiteEventStore(db);
   appendSingle(store);
@@ -54,7 +54,7 @@ test('verifyHashChain accepts an untampered stream', () => {
   );
 });
 
-test('verifyHashChain reports the tampered stream sequence', () => {
+test('verifyHashChain reports the tampered stream sequence', async () => {
   const db = createTestDatabase();
   const store = new SQLiteEventStore(db);
   appendSingle(store);

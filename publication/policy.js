@@ -12,9 +12,9 @@ function resolvePublicationCreationPolicy(command) {
   return { ...policy, scope_ref: scopeRef, visibility };
 }
 
-function activeCommunityMembership(db, scopeRef, actorId) {
+async function activeCommunityMembership(db, scopeRef, actorId) {
   if (!isCommunityScope(scopeRef)) return false;
-  return isActiveCommunityMember(db, scopeRef, actorId);
+  return await isActiveCommunityMember(db, scopeRef, actorId);
 }
 
 module.exports = { isCommunityScope, resolvePublicationCreationPolicy, activeCommunityMembership };

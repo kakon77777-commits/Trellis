@@ -9,7 +9,7 @@ const {semanticFactsFromViewModel,parseSemanticFactMarkers}=require('../web/rend
 async function call(path,services){return dispatchRequest({url:path,method:'GET',headers:{}},{routeHandlers:[createPublicRoutes(),createResourceRoutes()],services});}
 
 test('HTML and JSON expose identical normalized semantic facts for all five public resource types',async()=>{
- const {db,store}=setupWebSystem(); const services=createPublicServiceFacade({db,eventStore:store});
+ const {sql,store}=(await setupWebSystem()); const services=createPublicServiceFacade({sql,eventStore:store});
  const vectors=[
   ['public_feed','/','/api/public/feed'],['public_directory','/discover','/api/public/directory'],
   ['actor','/actors/actor%3AA','/api/actors/actor%3AA'],['publication','/publications/pub%3Ap1','/api/publications/pub%3Ap1'],

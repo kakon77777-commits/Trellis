@@ -8,7 +8,7 @@ function digestCommand(command) {
   return createHash('sha256').update(canonicalStringify(command), 'utf8').digest('hex');
 }
 
-function registerEntity(command, { eventStore, authorize }) {
+async function registerEntity(command, { eventStore, authorize }) {
   validateRegisterEntityCommand(command);
   const entityId = command.entity_id ?? deriveId(command.entity_kind, command.command_id);
   const occurredAt = command.occurred_at ?? new Date().toISOString();
@@ -65,7 +65,7 @@ function registerEntity(command, { eventStore, authorize }) {
     });
   }
 
-  const receipt = eventStore.append({
+  const receipt = await eventStore.append({
     streamType: 'entity',
     streamId: entityId,
     expectedVersion: 0,
@@ -82,9 +82,9 @@ function registerEntity(command, { eventStore, authorize }) {
   return { entity_id: entityId, receipt };
 }
 
-function registerActor(command, context) {
+async function registerActor(command, context) {
   validateRegisterActorCommand(command);
-  return registerEntity({
+  return await registerEntity({
     ...command,
     entity_kind: 'actor',
     actor_capable: true

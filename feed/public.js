@@ -9,17 +9,17 @@ const { paginateFeed } = require('./cursor');
 const PUBLIC_FEED_ALGORITHM_REF = 'trellis-feed:public-chronological:v1';
 const PUBLIC_FEED_PROJECTION_VERSION = 'trellis-feed-public:0.1';
 
-function collectPublicPublicationItems({ db, eventStore, disclosurePolicy }) {
-  const rows = db.prepare(`
+async function collectPublicPublicationItems({ db, eventStore, disclosurePolicy }) {
+  const rows = await db.all(`
     SELECT publication_id
     FROM publications_current
     WHERE lifecycle='active'
       AND reply_to_ref IS NULL
     ORDER BY publication_id
-  `).all();
+  `);
   const items = [];
   for (const row of rows) {
-    const surface = loadPublicationSurface({
+    const surface = await loadPublicationSurface({
       publicationId: row.publication_id,
       viewerContext: {},
       db,
@@ -28,7 +28,7 @@ function collectPublicPublicationItems({ db, eventStore, disclosurePolicy }) {
       includeReactionDecoration: false
     });
     if (!surface || surface.lifecycle !== 'active') continue;
-    const creationEvent = loadCreationEvent(db, row.publication_id);
+    const creationEvent = await loadCreationEvent(db, row.publication_id);
     const item = publicationFeedItem({ publicationSurface: surface, creationEvent });
     if (item) items.push(item);
   }
@@ -45,9 +45,9 @@ function computePublicFeedSnapshotRef(items) {
     .digest('hex');
 }
 
-function buildPublicFeed({ db, eventStore, disclosurePolicy }) {
-  const publicationItems = collectPublicPublicationItems({ db, eventStore, disclosurePolicy });
-  const activityItems = collectPublicActivityItems({
+async function buildPublicFeed({ db, eventStore, disclosurePolicy }) {
+  const publicationItems = await collectPublicPublicationItems({ db, eventStore, disclosurePolicy });
+  const activityItems = await collectPublicActivityItems({
     viewerContext: {},
     db,
     eventStore,
@@ -63,8 +63,8 @@ function buildPublicFeed({ db, eventStore, disclosurePolicy }) {
   };
 }
 
-function loadPublicFeed({ db, eventStore, disclosurePolicy, limit = 20, cursor = null }) {
-  const feed = buildPublicFeed({ db, eventStore, disclosurePolicy });
+async function loadPublicFeed({ db, eventStore, disclosurePolicy, limit = 20, cursor = null }) {
+  const feed = await buildPublicFeed({ db, eventStore, disclosurePolicy });
   const page = paginateFeed({ feed, limit, cursor });
   return { ...feed, items: page.items, next_cursor: page.next_cursor };
 }

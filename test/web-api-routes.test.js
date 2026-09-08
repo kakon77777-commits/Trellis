@@ -9,7 +9,7 @@ const { dispatchRequest }=require('../http/app');
 async function call(path,services){return dispatchRequest({url:path,method:'GET',headers:{}},{routeHandlers:[createPublicRoutes(),createResourceRoutes()],services});}
 
 test('public API routes expose viewer-safe resources and hide hidden/nonexistent distinction',async()=>{
-  const {db,store}=setupWebSystem(); const services=createPublicServiceFacade({db,eventStore:store});
+  const {sql,store}=(await setupWebSystem()); const services=createPublicServiceFacade({sql,eventStore:store});
   const actor=await call('/api/actors/actor%3AA',services);
   assert.equal(actor.status,200); assert.equal(JSON.parse(actor.body).actor_id,'actor:A');
   const pub=await call('/api/publications/pub%3Ap1',services);
@@ -22,7 +22,7 @@ test('public API routes expose viewer-safe resources and hide hidden/nonexistent
 });
 
 test('public feed and directory APIs are read-only and do not mutate canonical or operational state',async()=>{
-  const {db,store}=setupWebSystem(); const services=createPublicServiceFacade({db,eventStore:store});
+  const {db,sql,store}=(await setupWebSystem()); const services=createPublicServiceFacade({sql,eventStore:store});
   const before=counts(db);
   const feed=await call('/api/public/feed?limit=2',services);
   const directory=await call('/api/public/directory',services);

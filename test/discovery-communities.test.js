@@ -11,16 +11,16 @@ function community(id, discoverability='public', count=0) {
 function rel(id, source, target, type='follows', lifecycle='active') {
   return { relationship_id:id, source_entity_id:source, target_entity_id:target, relationship_type:type, scope_ref:type==='member_of'?target:null, visibility:'public', lifecycle };
 }
-function snapshot() {
+async function snapshot() {
   return {
     subject_actor_id:'actor:A', viewer_scope:'self', snapshot_ref:'snapshot:community',
     actors:Object.fromEntries(['actor:A','actor:B','actor:X'].map(id=>[id,actor(id)])),
     communities:{
-      'community:C1':community('community:C1','public',2),
-      'community:C2':community('community:C2','public',2),
-      'community:Cpending':community('community:Cpending','public',1),
-      'community:Cunlisted':community('community:Cunlisted','unlisted',1),
-      'community:Cprivate':community('community:Cprivate','private',1)
+      'community:C1':(await community('community:C1','public',2)),
+      'community:C2':(await community('community:C2','public',2)),
+      'community:Cpending':(await community('community:Cpending','public',1)),
+      'community:Cunlisted':(await community('community:Cunlisted','unlisted',1)),
+      'community:Cprivate':(await community('community:Cprivate','private',1))
     },
     relationships:[
       rel('rel:ax','actor:A','actor:X'),
@@ -35,8 +35,8 @@ function snapshot() {
   };
 }
 
-test('Community discovery scores visible connected members paths and membership overlap', () => {
-  const candidates=discoverCommunities(snapshot());
+test('Community discovery scores visible connected members paths and membership overlap', async () => {
+  const candidates=discoverCommunities((await snapshot()));
   const c2=candidates.find(candidate=>candidate.community_id==='community:C2');
   assert.ok(c2);
   assert.equal(c2.algorithm_ref,COMMUNITY_DISCOVERY_ALGORITHM_REF);
@@ -52,20 +52,20 @@ test('Community discovery scores visible connected members paths and membership 
   assert.equal(c2.community.community_id,'community:C2');
 });
 
-test('active and pending memberships exclude Communities from discovery', () => {
-  const ids=discoverCommunities(snapshot()).map(candidate=>candidate.community_id);
+test('active and pending memberships exclude Communities from discovery', async () => {
+  const ids=discoverCommunities((await snapshot())).map(candidate=>candidate.community_id);
   assert.equal(ids.includes('community:C1'),false);
   assert.equal(ids.includes('community:Cpending'),false);
 });
 
-test('unlisted and private Communities never enter generic discovery', () => {
-  const ids=discoverCommunities(snapshot()).map(candidate=>candidate.community_id);
+test('unlisted and private Communities never enter generic discovery', async () => {
+  const ids=discoverCommunities((await snapshot())).map(candidate=>candidate.community_id);
   assert.equal(ids.includes('community:Cunlisted'),false);
   assert.equal(ids.includes('community:Cprivate'),false);
 });
 
-test('multiple visible direct edges increase path count without duplicating connected member count', () => {
-  const s=snapshot();
+test('multiple visible direct edges increase path count without duplicating connected member count', async () => {
+  const s=(await snapshot());
   s.relationships.push(rel('rel:xa-review','actor:X','actor:A','reviews'));
   const c2=discoverCommunities(s).find(candidate=>candidate.community_id==='community:C2');
   assert.deepEqual(c2.score_components,{

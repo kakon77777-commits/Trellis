@@ -13,13 +13,13 @@ function paginatedSurface(feed, { limit = 20, cursor = null } = {}) {
   };
 }
 
-function loadHomeFeedSurface(args) {
-  const feed = buildHomeFeed(args);
+async function loadHomeFeedSurface(args) {
+  const feed = await buildHomeFeed(args);
   return paginatedSurface(feed, args);
 }
 
-function loadCommunityFeedSurface(args) {
-  const feed = buildCommunityFeed(args);
+async function loadCommunityFeedSurface(args) {
+  const feed = await buildCommunityFeed(args);
   return paginatedSurface(feed, args);
 }
 

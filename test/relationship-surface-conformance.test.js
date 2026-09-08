@@ -32,82 +32,82 @@ function context(store, actorId, at = '2026-09-02T11:30:00.000Z') {
   };
 }
 
-function register(store, actorId) {
-  registerActor({
+async function register(store, actorId) {
+  (await registerActor({
     command_id: `reg:${actorId}`, idempotency_key: `reg:${actorId}`,
     principal_id: `principal:${actorId}`, entity_id: actorId,
     occurred_at: '2026-09-02T11:30:00.000Z'
-  }, { eventStore: store, authorize: evaluateAuthority });
+  }, { eventStore: store, authorize: evaluateAuthority }));
 }
 
-test('Relationship Surface vertical slice survives projection destruction and rebuild', () => {
+test('Relationship Surface vertical slice survives projection destruction and rebuild', async () => {
   const db = createTestDatabase();
   const store = new SQLiteEventStore(db, { now: () => '2026-09-02T11:30:59.000Z' });
-  register(store, 'actor:A');
-  register(store, 'actor:B');
+  (await register(store, 'actor:A'));
+  (await register(store, 'actor:B'));
 
-  setDisplayName({
+  (await setDisplayName({
     command_id: 'profile:A:name', idempotency_key: 'profile:A:name',
     principal_id: 'principal:actor:A', actor_id: 'actor:A',
     value: 'Actor A', visibility: 'public'
-  }, context(store, 'actor:A'));
-  setDisplayName({
+  }, context(store, 'actor:A')));
+  (await setDisplayName({
     command_id: 'profile:B:name', idempotency_key: 'profile:B:name',
     principal_id: 'principal:actor:B', actor_id: 'actor:B',
     value: 'Actor B', visibility: 'public'
-  }, context(store, 'actor:B'));
+  }, context(store, 'actor:B')));
 
-  const proposed = proposeRelationship({
+  const proposed = (await proposeRelationship({
     command_id: 'rel:ab:propose', idempotency_key: 'rel:ab:propose',
     principal_id: 'principal:actor:A', source_entity_id: 'actor:A', target_entity_id: 'actor:B',
     relationship_type: 'collaborates_with', visibility: 'participants', scope_ref: 'project:X',
     occurred_at: '2026-09-02T11:31:00.000Z'
-  }, context(store, 'actor:A'));
+  }, context(store, 'actor:A')));
 
-  rebuildRelationshipProjection(db, store);
-  rebuildActorProfileProjection(db, store);
+  (await rebuildRelationshipProjection(db, store));
+  (await rebuildActorProfileProjection(db, store));
 
-  const pendingForB = buildRelationshipIndex({
+  const pendingForB = (await buildRelationshipIndex({
     actorId: 'actor:B', viewerContext: { viewer_actor_id: 'actor:B' }, db
-  });
+  }));
   assert.deepEqual(pendingForB.pending_incoming.map(x => x.relationship_id), [proposed.relationship_id]);
   assert.equal(pendingForB.counts.pending_incoming, 1);
 
-  activateRelationship({
+  (await activateRelationship({
     command_id: 'rel:ab:activate', idempotency_key: 'rel:ab:activate',
     principal_id: 'principal:actor:B', relationship_id: proposed.relationship_id,
     expected_version: 1, occurred_at: '2026-09-02T11:32:00.000Z'
-  }, context(store, 'actor:B'));
-  addEvidence({
+  }, context(store, 'actor:B')));
+  (await addEvidence({
     command_id: 'rel:ab:evidence', idempotency_key: 'rel:ab:evidence',
     principal_id: 'principal:actor:A', relationship_id: proposed.relationship_id,
     expected_version: 2, evidence_ref: 'artifact:X', occurred_at: '2026-09-02T11:33:00.000Z'
-  }, context(store, 'actor:A'));
-  openContestation({
+  }, context(store, 'actor:A')));
+  (await openContestation({
     command_id: 'rel:ab:contest-open', idempotency_key: 'rel:ab:contest-open',
     principal_id: 'principal:actor:B', relationship_id: proposed.relationship_id,
     expected_version: 3, contestation_id: 'contest:X', claim: 'claim',
     occurred_at: '2026-09-02T11:34:00.000Z'
-  }, context(store, 'actor:B'));
-  resolveContestation({
+  }, context(store, 'actor:B')));
+  (await resolveContestation({
     command_id: 'rel:ab:contest-resolve', idempotency_key: 'rel:ab:contest-resolve',
     principal_id: 'principal:actor:A', relationship_id: proposed.relationship_id,
     expected_version: 4, contestation_id: 'contest:X', resolution: 'dismissed',
     occurred_at: '2026-09-02T11:35:00.000Z'
-  }, context(store, 'actor:A'));
-  terminateRelationship({
+  }, context(store, 'actor:A')));
+  (await terminateRelationship({
     command_id: 'rel:ab:terminate', idempotency_key: 'rel:ab:terminate',
     principal_id: 'principal:actor:A', relationship_id: proposed.relationship_id,
     expected_version: 5, reason: 'revoked', occurred_at: '2026-09-02T11:36:00.000Z'
-  }, context(store, 'actor:A'));
+  }, context(store, 'actor:A')));
 
-  rebuildRelationshipProjection(db, store);
-  rebuildActorProfileProjection(db, store);
+  (await rebuildRelationshipProjection(db, store));
+  (await rebuildActorProfileProjection(db, store));
 
   const viewerA = { viewer_actor_id: 'actor:A', represents_actor_ids: [] };
-  const profileBefore = buildActorProfile({ actorId: 'actor:A', viewerContext: viewerA, eventStore: store, db });
-  const indexBefore = buildRelationshipIndex({ actorId: 'actor:A', viewerContext: viewerA, db });
-  const detailBefore = loadRelationshipDetail({ relationshipId: proposed.relationship_id, viewerContext: viewerA, eventStore: store, db });
+  const profileBefore = (await buildActorProfile({ actorId: 'actor:A', viewerContext: viewerA, eventStore: store, db }));
+  const indexBefore = (await buildRelationshipIndex({ actorId: 'actor:A', viewerContext: viewerA, db }));
+  const detailBefore = (await loadRelationshipDetail({ relationshipId: proposed.relationship_id, viewerContext: viewerA, eventStore: store, db }));
 
   assert.equal(detailBefore.lifecycle, 'terminated');
   assert.equal(detailBefore.termination_reason, 'revoked');
@@ -116,8 +116,8 @@ test('Relationship Surface vertical slice survives projection destruction and re
   assert.equal(detailBefore.available_actions.includes('activate'), false);
   assert.deepEqual(indexBefore.historical_terminated.map(x => x.relationship_id), [proposed.relationship_id]);
 
-  const publicDetail = loadRelationshipDetail({ relationshipId: proposed.relationship_id, viewerContext: {}, eventStore: store, db });
-  const publicIndex = buildRelationshipIndex({ actorId: 'actor:A', viewerContext: {}, db });
+  const publicDetail = (await loadRelationshipDetail({ relationshipId: proposed.relationship_id, viewerContext: {}, eventStore: store, db }));
+  const publicIndex = (await buildRelationshipIndex({ actorId: 'actor:A', viewerContext: {}, db }));
   assert.equal(publicDetail, null);
   assert.equal(publicIndex.counts.historical_terminated, 0);
   assert.equal(JSON.stringify(publicIndex).includes(proposed.relationship_id), false);
@@ -127,12 +127,12 @@ test('Relationship Surface vertical slice survives projection destruction and re
     DELETE FROM actor_profile_current;
     DELETE FROM relationships_current;
   `);
-  rebuildRelationshipProjection(db, store);
-  rebuildActorProfileProjection(db, store);
+  (await rebuildRelationshipProjection(db, store));
+  (await rebuildActorProfileProjection(db, store));
 
-  const profileAfter = buildActorProfile({ actorId: 'actor:A', viewerContext: viewerA, eventStore: store, db });
-  const indexAfter = buildRelationshipIndex({ actorId: 'actor:A', viewerContext: viewerA, db });
-  const detailAfter = loadRelationshipDetail({ relationshipId: proposed.relationship_id, viewerContext: viewerA, eventStore: store, db });
+  const profileAfter = (await buildActorProfile({ actorId: 'actor:A', viewerContext: viewerA, eventStore: store, db }));
+  const indexAfter = (await buildRelationshipIndex({ actorId: 'actor:A', viewerContext: viewerA, db }));
+  const detailAfter = (await loadRelationshipDetail({ relationshipId: proposed.relationship_id, viewerContext: viewerA, eventStore: store, db }));
 
   assert.deepEqual(profileAfter, profileBefore);
   assert.deepEqual(indexAfter, indexBefore);
@@ -142,7 +142,7 @@ test('Relationship Surface vertical slice survives projection destruction and re
   assert.deepEqual(store.verifyHashChain('relationship', proposed.relationship_id), { ok: true, failureAt: null });
 });
 
-test('Relationship Surface exports no forbidden state-authority shortcuts', () => {
+test('Relationship Surface exports no forbidden state-authority shortcuts', async () => {
   const exported = new Set([
     ...Object.keys(productCommands),
     ...Object.keys(renderJson),
@@ -160,6 +160,6 @@ test('Relationship Surface exports no forbidden state-authority shortcuts', () =
   }
 });
 
-test('syntax release gate includes every relationship surface module', () => {
+test('syntax release gate includes every relationship surface module', async () => {
   assert.match(packageJson.scripts.check, /relationship-surface\/\*\.js/);
 });

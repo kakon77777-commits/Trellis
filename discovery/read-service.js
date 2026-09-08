@@ -3,7 +3,7 @@ const { discoverActors, ACTOR_DISCOVERY_ALGORITHM_REF } = require('./actor-disco
 const { discoverCommunities, COMMUNITY_DISCOVERY_ALGORITHM_REF } = require('./community-discovery');
 const { paginateCandidates } = require('./cursor');
 
-function buildDiscoverySurface({
+async function buildDiscoverySurface({
   subjectActorId,
   viewerContext = {},
   db,
@@ -14,7 +14,7 @@ function buildDiscoverySurface({
   communityLimit = 20,
   communityCursor = null
 }) {
-  const snapshot = buildDiscoverySnapshot({
+  const snapshot = await buildDiscoverySnapshot({
     subjectActorId,
     viewerContext,
     db,

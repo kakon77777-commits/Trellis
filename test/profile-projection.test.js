@@ -19,27 +19,27 @@ function context(eventStore) {
   };
 }
 
-function setupProfile() {
+async function setupProfile() {
   const db = createTestDatabase();
   const eventStore = new SQLiteEventStore(db, { now: () => '2026-09-02T08:00:01.000Z' });
-  registerActor({
+  (await registerActor({
     command_id: 'reg-a', idempotency_key: 'reg-a', principal_id: 'principal:A', entity_id: 'actor:A'
-  }, { eventStore, authorize: evaluateAuthority });
+  }, { eventStore, authorize: evaluateAuthority }));
 
-  const first = setDisplayName({
+  const first = (await setDisplayName({
     command_id: 'name-1', idempotency_key: 'name-1', principal_id: 'principal:A', actor_id: 'actor:A', value: 'Aletheia'
-  }, context(eventStore));
-  setBio({
+  }, context(eventStore)));
+  (await setBio({
     command_id: 'bio-1', idempotency_key: 'bio-1', principal_id: 'principal:A', actor_id: 'actor:A',
     value: 'Private biography', visibility: 'private'
-  }, context(eventStore));
-  addAlias({
+  }, context(eventStore)));
+  (await addAlias({
     command_id: 'alias-1', idempotency_key: 'alias-1', principal_id: 'principal:A', actor_id: 'actor:A', value: 'Ale'
-  }, context(eventStore));
-  setDisplayName({
+  }, context(eventStore)));
+  (await setDisplayName({
     command_id: 'name-2', idempotency_key: 'name-2', principal_id: 'principal:A', actor_id: 'actor:A', value: 'Aletheia Prime',
     supersedes_assertion_id: first.assertion_id
-  }, context(eventStore));
+  }, context(eventStore)));
 
   return { db, eventStore, firstAssertionId: first.assertion_id };
 }
@@ -51,9 +51,9 @@ function dumpProjection(db) {
   };
 }
 
-test('profile projection can be destroyed and rebuilt exactly from canonical entity history', () => {
-  const { db, eventStore, firstAssertionId } = setupProfile();
-  projectActorProfile(db, eventStore, 'actor:A');
+test('profile projection can be destroyed and rebuilt exactly from canonical entity history', async () => {
+  const { db, eventStore, firstAssertionId } = (await setupProfile());
+  (await projectActorProfile(db, eventStore, 'actor:A'));
   const before = dumpProjection(db);
 
   assert.equal(before.current.length, 1);
@@ -63,7 +63,7 @@ test('profile projection can be destroyed and rebuilt exactly from canonical ent
   db.exec('DELETE FROM actor_profile_assertions_current; DELETE FROM actor_profile_current;');
   assert.deepEqual(dumpProjection(db), { current: [], assertions: [] });
 
-  rebuildActorProfileProjection(db, eventStore);
+  (await rebuildActorProfileProjection(db, eventStore));
   const after = dumpProjection(db);
   assert.deepEqual(after, before);
 });

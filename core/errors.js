@@ -12,6 +12,14 @@ class IdempotencyConflictError extends Error {
   }
 }
 
+
+class StorageInvariantError extends Error {
+  constructor(message = 'STORAGE_INVARIANT', options = {}) {
+    super(message, options);
+    this.code = 'STORAGE_INVARIANT';
+  }
+}
+
 class InvalidTransitionError extends Error {
   constructor(message = 'INVALID_TRANSITION') {
     super(message);
@@ -29,6 +37,7 @@ class PolicyDeniedError extends Error {
 module.exports = {
   VersionConflictError,
   IdempotencyConflictError,
+  StorageInvariantError,
   InvalidTransitionError,
   PolicyDeniedError
 };

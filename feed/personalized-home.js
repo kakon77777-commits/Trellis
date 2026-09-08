@@ -18,7 +18,7 @@ function requireOwnerView(subjectActorId, viewerContext = {}) {
   }
 }
 
-function buildPersonalizedHomeFeedSnapshot({
+async function buildPersonalizedHomeFeedSnapshot({
   subjectActorId,
   viewerContext = {},
   db,
@@ -27,21 +27,21 @@ function buildPersonalizedHomeFeedSnapshot({
   rankingReferenceTime
 }) {
   requireOwnerView(subjectActorId, viewerContext);
-  const sourceGraph = buildFeedSourceGraph({
+  const sourceGraph = await buildFeedSourceGraph({
     subjectActorId,
     viewerContext,
     db,
     eventStore,
     disclosurePolicy
   });
-  const publicationItems = collectHomePublicationItems({
+  const publicationItems = await collectHomePublicationItems({
     sourceGraph,
     viewerContext,
     db,
     eventStore,
     disclosurePolicy
   });
-  const activityItems = collectHomeActivityItems({
+  const activityItems = await collectHomeActivityItems({
     sourceGraph,
     subjectActorId,
     viewerContext,
@@ -50,18 +50,22 @@ function buildPersonalizedHomeFeedSnapshot({
     disclosurePolicy
   });
   const visibleCandidateItems = [...publicationItems, ...activityItems];
-  const preferenceFilteredItems = applyOwnerFeedPreferences({
+  const preferenceFilteredItems = await applyOwnerFeedPreferences({
     ownerActorId: subjectActorId,
     viewerContext,
     items: visibleCandidateItems,
     db
   });
-  const items = preferenceFilteredItems.map(item => scoreItem({
-    item,
-    sourceComponent: sourceComponentForItem(item, sourceGraph),
-    consumptionState: consumptionForFeedItem({ ownerActorId: subjectActorId, item, db, rankingReferenceTime }),
-    rankingReferenceTime
-  })).sort(comparePersonalizedFeedItemsDesc);
+  const items = [];
+  for (const item of preferenceFilteredItems) {
+    items.push(scoreItem({
+      item,
+      sourceComponent: sourceComponentForItem(item, sourceGraph),
+      consumptionState: await consumptionForFeedItem({ ownerActorId: subjectActorId, item, db, rankingReferenceTime }),
+      rankingReferenceTime
+    }));
+  }
+  items.sort(comparePersonalizedFeedItemsDesc);
   const snapshotRef = computePersonalizedFeedSnapshotRef({
     subjectActorId,
     viewerContext,
@@ -86,8 +90,8 @@ function buildPersonalizedHomeFeedSnapshot({
   };
 }
 
-function buildPersonalizedHomeFeed(args) {
-  const snapshot = buildPersonalizedHomeFeedSnapshot(args);
+async function buildPersonalizedHomeFeed(args) {
+  const snapshot = await buildPersonalizedHomeFeedSnapshot(args);
   return {
     feed_type: snapshot.feed_type,
     subject_actor_id: snapshot.subject_actor_id,

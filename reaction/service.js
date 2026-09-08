@@ -27,9 +27,9 @@ function ensureCommand(command, { typeRequired = false } = {}) {
   if (command.reaction_id && command.reaction_id !== derived) throw new TypeError('REACTION_ID_MISMATCH');
   return derived;
 }
-function idempotencyGate(command, context, reactionId) {
+async function idempotencyGate(command, context, reactionId) {
   const commandDigest = digestCommand(command);
-  const prior = context.eventStore.lookupIdempotency(command.idempotency_key);
+  const prior = await context.eventStore.lookupIdempotency(command.idempotency_key);
   if (!prior) return {commandDigest,result:null};
   if (prior.command_digest !== commandDigest) throw new IdempotencyConflictError();
   return {commandDigest,result:{reaction_id:reactionId,receipt:{...prior,deduplicated:true}}};
@@ -43,27 +43,27 @@ function baseEvent(command, context, eventType, suffix, payload) {
     time_source:command.time_source ?? 'system',provenance_refs:command.provenance_refs ?? [],payload
   };
 }
-function requireActiveActor(eventStore, actorId) {
-  const state=foldEntity(eventStore.readStream('entity',actorId));
+async function requireActiveActor(eventStore, actorId) {
+  const state=foldEntity(await eventStore.readStream('entity',actorId));
   if (state.lifecycle!=='active' || state.entity_kind!=='actor' || state.entity_id!==actorId) throw new InvalidTransitionError('REACTION_ACTOR_NOT_ACTIVE');
 }
-function loadTarget(command, context) {
-  const events=context.eventStore.readStream('publication',command.publication_id);
+async function loadTarget(command, context) {
+  const events=await context.eventStore.readStream('publication',command.publication_id);
   if (events.length===0) throw new InvalidTransitionError('REACTION_TARGET_NOT_FOUND');
   return foldPublication(events);
 }
-function targetReadable(target, actorId, context) {
-  const membershipResolver=createMembershipResolver(context.db);
+async function targetReadable(target, actorId, context) {
+  const membershipResolver=await createMembershipResolver(context.db);
   return canViewPublication(target,{viewer_actor_id:actorId},context.disclosurePolicy,membershipResolver);
 }
-function requireActiveReadableTarget(command, context) {
-  const target=loadTarget(command,context);
+async function requireActiveReadableTarget(command, context) {
+  const target=await loadTarget(command,context);
   if (target.lifecycle!=='active') throw new InvalidTransitionError('REACTION_TARGET_NOT_ACTIVE');
-  if (!targetReadable(target,command.actor_id,context)) throw new InvalidTransitionError('REACTION_TARGET_NOT_READABLE');
+  if (!(await targetReadable(target,command.actor_id,context))) throw new InvalidTransitionError('REACTION_TARGET_NOT_READABLE');
   return target;
 }
-function loadReaction(reactionId, context) {
-  const events=context.eventStore.readStream('reaction',reactionId);
+async function loadReaction(reactionId, context) {
+  const events=await context.eventStore.readStream('reaction',reactionId);
   return {events,state:events.length?foldReaction(events):null};
 }
 function authorityOrThrow(request) {
@@ -79,65 +79,65 @@ function authorityRequest(command, context, reactionId, action, extra={}) {
     evaluated_at:context.evaluatedAt ?? command.occurred_at ?? new Date().toISOString(),...extra
   };
 }
-function append(command, context, reactionId, expectedVersion, eventType, suffix, payload, authorityReceipt, commandDigest) {
+async function append(command, context, reactionId, expectedVersion, eventType, suffix, payload, authorityReceipt, commandDigest) {
   const timestamp=command.occurred_at ?? context.evaluatedAt ?? new Date().toISOString();
-  const receipt=context.eventStore.append({
+  const receipt=await context.eventStore.append({
     streamType:'reaction',streamId:reactionId,expectedVersion,
     events:[baseEvent(command,context,eventType,suffix,payload)],authorityReceipt,
     commandReceipt:{command_id:command.command_id,idempotency_key:command.idempotency_key,command_digest:commandDigest,status:'accepted',created_at:timestamp}
   });
-  projectReactionStream(context.db,context.eventStore,reactionId);
+  await projectReactionStream(context.sql,context.eventStore,reactionId);
   return {reaction_id:reactionId,receipt};
 }
 
-function createReaction(command, context) {
+async function createReaction(command, context) {
   const reactionId=ensureCommand(command,{typeRequired:true});
-  const gate=idempotencyGate(command,context,reactionId); if (gate.result) return gate.result;
-  requireActiveActor(context.eventStore,command.actor_id);
-  const existing=loadReaction(reactionId,context);
+  const gate=await idempotencyGate(command,context,reactionId); if (gate.result) return gate.result;
+  await requireActiveActor(context.eventStore,command.actor_id);
+  const existing=await loadReaction(reactionId,context);
   if (existing.events.length) throw new InvalidTransitionError('REACTION_ALREADY_EXISTS');
-  const target=requireActiveReadableTarget(command,context);
+  const target=await requireActiveReadableTarget(command,context);
   const authorityReceipt=authorityOrThrow(authorityRequest(command,context,reactionId,'reaction.create',{publication_active:true,publication_readable:true}));
   const payload={
     reaction_id:reactionId,actor_id:command.actor_id,publication_id:command.publication_id,
     scope_ref:target.scope_ref ?? null,visibility:target.visibility,audience_actor_ids:[...(target.audience_actor_ids ?? [])],
     reaction_policy_ref:REACTION_POLICY_REF,reaction_type:command.reaction_type
   };
-  return append(command,context,reactionId,0,'reaction.created','created',payload,authorityReceipt,gate.commandDigest);
+  return await append(command,context,reactionId,0,'reaction.created','created',payload,authorityReceipt,gate.commandDigest);
 }
 
-function changeReaction(command, context) {
+async function changeReaction(command, context) {
   const reactionId=ensureCommand(command,{typeRequired:true});
-  const gate=idempotencyGate(command,context,reactionId); if (gate.result) return gate.result;
-  const {events,state}=loadReaction(reactionId,context);
+  const gate=await idempotencyGate(command,context,reactionId); if (gate.result) return gate.result;
+  const {events,state}=await loadReaction(reactionId,context);
   if (!events.length) throw new InvalidTransitionError('REACTION_NOT_FOUND');
   if (state.lifecycle!=='active') throw new InvalidTransitionError('REACTION_CANNOT_CHANGE');
-  requireActiveActor(context.eventStore,command.actor_id);
-  requireActiveReadableTarget(command,context);
+  await requireActiveActor(context.eventStore,command.actor_id);
+  await requireActiveReadableTarget(command,context);
   const authorityReceipt=authorityOrThrow(authorityRequest(command,context,reactionId,'reaction.change',{publication_active:true,publication_readable:true,reaction_state:state}));
-  return append(command,context,reactionId,command.expected_version,'reaction.changed','changed',{reaction_type:command.reaction_type},authorityReceipt,gate.commandDigest);
+  return await append(command,context,reactionId,command.expected_version,'reaction.changed','changed',{reaction_type:command.reaction_type},authorityReceipt,gate.commandDigest);
 }
 
-function withdrawReaction(command, context) {
+async function withdrawReaction(command, context) {
   const reactionId=ensureCommand(command);
-  const gate=idempotencyGate(command,context,reactionId); if (gate.result) return gate.result;
-  const {events,state}=loadReaction(reactionId,context);
+  const gate=await idempotencyGate(command,context,reactionId); if (gate.result) return gate.result;
+  const {events,state}=await loadReaction(reactionId,context);
   if (!events.length) throw new InvalidTransitionError('REACTION_NOT_FOUND');
   if (state.lifecycle!=='active') throw new InvalidTransitionError('REACTION_CANNOT_WITHDRAW');
   const authorityReceipt=authorityOrThrow(authorityRequest(command,context,reactionId,'reaction.withdraw',{reaction_state:state}));
-  return append(command,context,reactionId,command.expected_version,'reaction.withdrawn','withdrawn',{reason:command.reason ?? 'actor_withdrawn'},authorityReceipt,gate.commandDigest);
+  return await append(command,context,reactionId,command.expected_version,'reaction.withdrawn','withdrawn',{reason:command.reason ?? 'actor_withdrawn'},authorityReceipt,gate.commandDigest);
 }
 
-function restoreReaction(command, context) {
+async function restoreReaction(command, context) {
   const reactionId=ensureCommand(command,{typeRequired:true});
-  const gate=idempotencyGate(command,context,reactionId); if (gate.result) return gate.result;
-  const {events,state}=loadReaction(reactionId,context);
+  const gate=await idempotencyGate(command,context,reactionId); if (gate.result) return gate.result;
+  const {events,state}=await loadReaction(reactionId,context);
   if (!events.length) throw new InvalidTransitionError('REACTION_NOT_FOUND');
   if (state.lifecycle!=='withdrawn') throw new InvalidTransitionError('REACTION_CANNOT_RESTORE');
-  requireActiveActor(context.eventStore,command.actor_id);
-  requireActiveReadableTarget(command,context);
+  await requireActiveActor(context.eventStore,command.actor_id);
+  await requireActiveReadableTarget(command,context);
   const authorityReceipt=authorityOrThrow(authorityRequest(command,context,reactionId,'reaction.restore',{publication_active:true,publication_readable:true,reaction_state:state}));
-  return append(command,context,reactionId,command.expected_version,'reaction.restored','restored',{reaction_type:command.reaction_type},authorityReceipt,gate.commandDigest);
+  return await append(command,context,reactionId,command.expected_version,'reaction.restored','restored',{reaction_type:command.reaction_type},authorityReceipt,gate.commandDigest);
 }
 
 module.exports={createReaction,changeReaction,withdrawReaction,restoreReaction};

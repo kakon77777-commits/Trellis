@@ -2,14 +2,14 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { authorizeFeedSubject } = require('../feed/context');
 
-test('subject can read own personalized Feed', () => {
+test('subject can read own personalized Feed', async () => {
   assert.deepEqual(
     authorizeFeedSubject('actor:A', { viewer_actor_id: 'actor:A' }),
     { viewer_scope: 'self' }
   );
 });
 
-test('representative may read subject Feed without becoming subject', () => {
+test('representative may read subject Feed without becoming subject', async () => {
   assert.deepEqual(
     authorizeFeedSubject('actor:A', {
       viewer_actor_id: 'actor:R',
@@ -19,7 +19,7 @@ test('representative may read subject Feed without becoming subject', () => {
   );
 });
 
-test('unrelated viewer cannot read another Actor personalized Feed', () => {
+test('unrelated viewer cannot read another Actor personalized Feed', async () => {
   assert.throws(
     () => authorizeFeedSubject('actor:A', { viewer_actor_id: 'actor:Z' }),
     /FEED_NOT_AUTHORIZED/

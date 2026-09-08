@@ -22,7 +22,7 @@ function event(seq, payload) {
   };
 }
 
-test('single-valued assertion becomes active', () => {
+test('single-valued assertion becomes active', async () => {
   const state = foldProfileAssertions([
     event(1, {
       assertion_id: 'assert:1',
@@ -39,7 +39,7 @@ test('single-valued assertion becomes active', () => {
   assert.equal(state.history.length, 1);
 });
 
-test('single-valued assertion requires explicit supersession', () => {
+test('single-valued assertion requires explicit supersession', async () => {
   const events = [
     event(1, {
       assertion_id: 'assert:1', field_ref: 'profile:display_name:v1', operation: 'assert',
@@ -56,7 +56,7 @@ test('single-valued assertion requires explicit supersession', () => {
   assert.throws(() => foldProfileAssertions(events), /PROFILE_SUPERSESSION_REQUIRED/);
 });
 
-test('correct supersession replaces active single value without deleting history', () => {
+test('correct supersession replaces active single value without deleting history', async () => {
   const state = foldProfileAssertions([
     event(1, {
       assertion_id: 'assert:1', field_ref: 'profile:display_name:v1', operation: 'assert',
@@ -76,7 +76,7 @@ test('correct supersession replaces active single value without deleting history
   assert.equal(state.assertions_by_id['assert:1'].active, false);
 });
 
-test('multi-valued aliases coexist and retract individually', () => {
+test('multi-valued aliases coexist and retract individually', async () => {
   const state = foldProfileAssertions([
     event(1, {
       assertion_id: 'assert:1', field_ref: 'profile:alias:v1', operation: 'assert',
@@ -97,7 +97,7 @@ test('multi-valued aliases coexist and retract individually', () => {
   assert.equal(state.history.length, 3);
 });
 
-test('retracting an unknown assertion fails', () => {
+test('retracting an unknown assertion fails', async () => {
   assert.throws(() => foldProfileAssertions([
     event(1, {
       assertion_id: 'assert:r', field_ref: 'profile:alias:v1', operation: 'retract',
@@ -106,7 +106,7 @@ test('retracting an unknown assertion fails', () => {
   ]), /PROFILE_RETRACT_TARGET_NOT_ACTIVE/);
 });
 
-test('assertion id is immutable and cannot be replayed with different visibility', () => {
+test('assertion id is immutable and cannot be replayed with different visibility', async () => {
   assert.throws(() => foldProfileAssertions([
     event(1, {
       assertion_id: 'assert:1', field_ref: 'profile:alias:v1', operation: 'assert',
@@ -119,14 +119,14 @@ test('assertion id is immutable and cannot be replayed with different visibility
   ]), /ASSERTION_IMMUTABLE/);
 });
 
-test('field registry resolves allowed defaults and rejects scope_members', () => {
+test('field registry resolves allowed defaults and rejects scope_members', async () => {
   const field = getProfileField('profile:alias:v1');
   assert.equal(resolveAssertionVisibility(field), 'participants');
   assert.equal(resolveAssertionVisibility(field, 'private'), 'private');
   assert.throws(() => resolveAssertionVisibility(field, 'scope_members'), /PROFILE_VISIBILITY_NOT_ALLOWED/);
 });
 
-test('profile assertions reject scope_ref and self-declared verification', () => {
+test('profile assertions reject scope_ref and self-declared verification', async () => {
   const base = {
     assertion_id: 'assert:1', field_ref: 'profile:bio:v1', operation: 'assert', value: 'bio',
     visibility: 'public', field_registry_ref: 'profile-fields:0.1'
@@ -135,7 +135,7 @@ test('profile assertions reject scope_ref and self-declared verification', () =>
   assert.throws(() => validateAssertionPayload({ ...base, verified: true }), /PROFILE_ASSERTION_VERIFICATION_FORBIDDEN/);
 });
 
-test('URL fields reject malformed URLs and retract forbids a value', () => {
+test('URL fields reject malformed URLs and retract forbids a value', async () => {
   assert.throws(() => validateAssertionPayload({
     assertion_id: 'assert:1', field_ref: 'profile:website:v1', operation: 'assert',
     value: 'not-a-url', visibility: 'public', field_registry_ref: 'profile-fields:0.1'

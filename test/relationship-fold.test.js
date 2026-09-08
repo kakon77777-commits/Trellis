@@ -25,7 +25,7 @@ function event(type, seq, payload = {}) {
   return { event_id: `evt:${seq}`, event_type: type, stream_seq: seq, payload };
 }
 
-test('fold reconstructs the canonical lifecycle vector', () => {
+test('fold reconstructs the canonical lifecycle vector', async () => {
   const { foldRelationship } = require('../relationship/fold');
   const state = foldRelationship(fixture.events);
   for (const [key, expected] of Object.entries(fixture.expected)) {
@@ -36,7 +36,7 @@ test('fold reconstructs the canonical lifecycle vector', () => {
   assert.equal(state.visibility, 'participants');
 });
 
-test('terminated relationship cannot reactivate', () => {
+test('terminated relationship cannot reactivate', async () => {
   const { foldRelationship } = require('../relationship/fold');
   assert.throws(() => foldRelationship([
     proposal(),
@@ -46,7 +46,7 @@ test('terminated relationship cannot reactivate', () => {
   ]), error => error && error.code === 'INVALID_TRANSITION');
 });
 
-test('second proposal on one aggregate is rejected', () => {
+test('second proposal on one aggregate is rejected', async () => {
   const { foldRelationship } = require('../relationship/fold');
   assert.throws(() => foldRelationship([
     proposal(),
@@ -54,7 +54,7 @@ test('second proposal on one aggregate is rejected', () => {
   ]), error => error && error.code === 'INVALID_TRANSITION');
 });
 
-test('evidence and contestation are orthogonal to lifecycle', () => {
+test('evidence and contestation are orthogonal to lifecycle', async () => {
   const { foldRelationship } = require('../relationship/fold');
   const state = foldRelationship([
     proposal(),
@@ -67,7 +67,7 @@ test('evidence and contestation are orthogonal to lifecycle', () => {
   assert.equal(state.open_contestation_count, 1);
 });
 
-test('relationship type is immutable after proposal', () => {
+test('relationship type is immutable after proposal', async () => {
   const { foldRelationship } = require('../relationship/fold');
   assert.throws(() => foldRelationship([
     proposal(),
@@ -75,7 +75,7 @@ test('relationship type is immutable after proposal', () => {
   ]), error => error && error.code === 'INVALID_TRANSITION');
 });
 
-test('scope_ref is immutable after proposal', () => {
+test('scope_ref is immutable after proposal', async () => {
   const { foldRelationship } = require('../relationship/fold');
   assert.throws(() => foldRelationship([
     proposal(),
@@ -83,7 +83,7 @@ test('scope_ref is immutable after proposal', () => {
   ]), error => error && error.code === 'INVALID_TRANSITION');
 });
 
-test('visibility is immutable after proposal', () => {
+test('visibility is immutable after proposal', async () => {
   const { foldRelationship } = require('../relationship/fold');
   assert.throws(() => foldRelationship([
     proposal(),

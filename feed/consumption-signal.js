@@ -16,10 +16,10 @@ function eligibleRow(row, rankingReferenceTime) {
   return expiresMs <= referenceMs ? null : row;
 }
 
-function consumptionForFeedItem({ ownerActorId, item, db, rankingReferenceTime }) {
+async function consumptionForFeedItem({ ownerActorId, item, db, rankingReferenceTime }) {
   const store = new ConsumptionStore(db);
-  if (item?.item_type === 'publication') return eligibleRow(store.get(ownerActorId, 'publication', item.source_ref), rankingReferenceTime);
-  if (item?.item_type === 'social_activity') return eligibleRow(store.get(ownerActorId, 'social_activity', item.source_event_ref), rankingReferenceTime);
+  if (item?.item_type === 'publication') return eligibleRow(await store.get(ownerActorId, 'publication', item.source_ref), rankingReferenceTime);
+  if (item?.item_type === 'social_activity') return eligibleRow(await store.get(ownerActorId, 'social_activity', item.source_event_ref), rankingReferenceTime);
   return null;
 }
 

@@ -1,5 +1,3 @@
-const { isActiveCommunityMember } = require('../community/membership-read');
-
 function representedActors(viewerContext = {}) {
   return viewerContext.represents_actor_ids ?? [];
 }

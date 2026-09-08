@@ -1,7 +1,7 @@
 const {PolicyDeniedError}=require('../core/errors');
 const {evaluateAuthority}=require('../authority/policy');
 const {ConsumptionStore}=require('./store');
-const {resolveConsumptionTarget}=require('./eligibility');
+const {resolveConsumptionTargetAsync}=require('./eligibility');
 
 const CLIENT_TIME_FIELDS=Object.freeze(['occurred_at','recorded_at','first_seen_at','first_opened_at','last_touched_at','expires_at']);
 function requireString(value,code){if(typeof value!=='string'||!value)throw new TypeError(code);return value;}
@@ -30,16 +30,16 @@ function authorityOrThrow(command,context,target){
   if(!receipt||receipt.decision!=='allow')throw new PolicyDeniedError();
   return receipt;
 }
-function recordObservation(observation,command,context){
+async function recordObservation(observation,command,context){
   requireCommand(command);
   requireString(context?.recognizedViewerActorId,'CONSUMPTION_VIEWER_NOT_RECOGNIZED');
-  const target=resolveConsumptionTarget({observation,target:command.target,viewerActorId:context.recognizedViewerActorId,db:context.db,eventStore:context.eventStore,disclosurePolicy:context.disclosurePolicy});
+  const target=await resolveConsumptionTargetAsync({observation,target:command.target,viewerActorId:context.recognizedViewerActorId,db:context.db,eventStore:context.eventStore,disclosurePolicy:context.disclosurePolicy});
   authorityOrThrow(command,context,target);
   const now=trustedNow(context);
-  const store=new ConsumptionStore(context.db);
-  if(observation==='opened')return store.recordOpened({consumerActorId:command.requested_consumer_actor_id,targetKind:target.target_kind,targetRef:target.target_ref,now});
-  return store.recordSeen({consumerActorId:command.requested_consumer_actor_id,targetKind:target.target_kind,targetRef:target.target_ref,now});
+  const store=new ConsumptionStore(context.sql);
+  if(observation==='opened')return await store.recordOpened({consumerActorId:command.requested_consumer_actor_id,targetKind:target.target_kind,targetRef:target.target_ref,now});
+  return await store.recordSeen({consumerActorId:command.requested_consumer_actor_id,targetKind:target.target_kind,targetRef:target.target_ref,now});
 }
-function recordSeen(command,context){return recordObservation('seen',command,context);}
-function recordOpened(command,context){return recordObservation('opened',command,context);}
+async function recordSeen(command,context){return await recordObservation('seen',command,context);}
+async function recordOpened(command,context){return await recordObservation('opened',command,context);}
 module.exports={recordSeen,recordOpened,recordObservation,CLIENT_TIME_FIELDS};

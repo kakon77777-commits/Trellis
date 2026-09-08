@@ -19,10 +19,10 @@ function assertionView(assertion) {
   return { value: assertion.value, assertion_id: assertion.assertion_id };
 }
 
-function buildCommunitySurface({ communityId, viewerContext = {}, db, eventStore, disclosurePolicy }) {
-  const viewerScope = communityViewerScope({ communityId, viewerContext, db, eventStore });
+async function buildCommunitySurface({ communityId, viewerContext = {}, db, eventStore, disclosurePolicy }) {
+  const viewerScope = await communityViewerScope({ communityId, viewerContext, db, eventStore });
   if (!viewerScope) return null;
-  const events = eventStore.readStream('entity', communityId);
+  const events = await eventStore.readStream('entity', communityId);
   if (events.length === 0) return null;
   const communityState = foldCommunityAssertions(events);
   const presentation = {};
@@ -30,8 +30,8 @@ function buildCommunitySurface({ communityId, viewerContext = {}, db, eventStore
     const assertion = communityState.active_single[fieldRef];
     if (assertion && assertionReadable(assertion, viewerScope)) presentation[key] = assertionView(assertion);
   }
-  const membership = listVisibleMembers({ communityId, viewerContext, db, eventStore, disclosurePolicy });
-  const localGraph = buildCommunityLocalGraph({ communityId, viewerContext, db, eventStore, disclosurePolicy });
+  const membership = await listVisibleMembers({ communityId, viewerContext, db, eventStore, disclosurePolicy });
+  const localGraph = await buildCommunityLocalGraph({ communityId, viewerContext, db, eventStore, disclosurePolicy });
   return {
     community_id: communityId,
     presentation,

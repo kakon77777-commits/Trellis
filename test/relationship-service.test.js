@@ -26,17 +26,17 @@ function proposalCommand(overrides = {}) {
   };
 }
 
-test('unilateral follows proposal atomically becomes active', () => {
+test('unilateral follows proposal atomically becomes active', async () => {
   const { proposeRelationship } = require('../relationship/service');
   const db = createTestDatabase();
   const store = new SQLiteEventStore(db);
 
-  const result = proposeRelationship(proposalCommand({
+  const result = (await proposeRelationship(proposalCommand({
     command_id: 'cmd:follow',
     idempotency_key: 'idem:follow',
     relationship_type: 'follows',
     scope_ref: null
-  }), contextFor(store, 'actor:A'));
+  }), contextFor(store, 'actor:A')));
 
   const events = store.readStream('relationship', result.relationship_id);
   assert.deepEqual(events.map(x => x.event_type), [
@@ -46,51 +46,51 @@ test('unilateral follows proposal atomically becomes active', () => {
   assert.equal(foldRelationship(events).lifecycle, 'active');
 });
 
-test('bilateral collaboration remains proposed until target-authorized activation', () => {
+test('bilateral collaboration remains proposed until target-authorized activation', async () => {
   const { proposeRelationship, activateRelationship } = require('../relationship/service');
   const db = createTestDatabase();
   const store = new SQLiteEventStore(db);
 
-  const proposed = proposeRelationship(proposalCommand(), contextFor(store, 'actor:A'));
+  const proposed = (await proposeRelationship(proposalCommand(), contextFor(store, 'actor:A')));
   let state = foldRelationship(store.readStream('relationship', proposed.relationship_id));
   assert.equal(state.lifecycle, 'proposed');
   assert.equal(state.visibility, 'participants');
   assert.equal(state.scope_ref, 'project:X');
 
-  assert.throws(() => activateRelationship({
+  await assert.rejects(async () => (await activateRelationship({
     command_id: 'cmd:activate-wrong',
     idempotency_key: 'idem:activate-wrong',
     principal_id: 'principal:A',
     relationship_id: proposed.relationship_id,
     expected_version: 1,
     occurred_at: '2026-09-02T07:31:00.000Z'
-  }, contextFor(store, 'actor:A')), error => error && error.code === 'POLICY_DENIED');
+  }, contextFor(store, 'actor:A'))), error => error && error.code === 'POLICY_DENIED');
 
-  activateRelationship({
+  (await activateRelationship({
     command_id: 'cmd:activate-right',
     idempotency_key: 'idem:activate-right',
     principal_id: 'principal:B',
     relationship_id: proposed.relationship_id,
     expected_version: 1,
     occurred_at: '2026-09-02T07:32:00.000Z'
-  }, contextFor(store, 'actor:B'));
+  }, contextFor(store, 'actor:B')));
 
   state = foldRelationship(store.readStream('relationship', proposed.relationship_id));
   assert.equal(state.lifecycle, 'active');
   assert.equal(state.visibility, 'participants');
 });
 
-test('proposal visibility override is resolved once and persisted', () => {
+test('proposal visibility override is resolved once and persisted', async () => {
   const { proposeRelationship } = require('../relationship/service');
   const db = createTestDatabase();
   const store = new SQLiteEventStore(db);
 
-  const result = proposeRelationship(proposalCommand({ visibility: 'private' }), contextFor(store, 'actor:A'));
+  const result = (await proposeRelationship(proposalCommand({ visibility: 'private' }), contextFor(store, 'actor:A')));
   const state = foldRelationship(store.readStream('relationship', result.relationship_id));
   assert.equal(state.visibility, 'private');
 });
 
-test('participant commands append evidence contestation annotation and termination events', () => {
+test('participant commands append evidence contestation annotation and termination events', async () => {
   const {
     proposeRelationship,
     activateRelationship,
@@ -102,18 +102,18 @@ test('participant commands append evidence contestation annotation and terminati
   } = require('../relationship/service');
   const db = createTestDatabase();
   const store = new SQLiteEventStore(db);
-  const proposed = proposeRelationship(proposalCommand(), contextFor(store, 'actor:A'));
+  const proposed = (await proposeRelationship(proposalCommand(), contextFor(store, 'actor:A')));
 
-  activateRelationship({
+  (await activateRelationship({
     command_id: 'cmd:lifecycle-activate',
     idempotency_key: 'idem:lifecycle-activate',
     principal_id: 'principal:B',
     relationship_id: proposed.relationship_id,
     expected_version: 1,
     occurred_at: '2026-09-02T07:40:00.000Z'
-  }, contextFor(store, 'actor:B'));
+  }, contextFor(store, 'actor:B')));
 
-  addEvidence({
+  (await addEvidence({
     command_id: 'cmd:lifecycle-evidence',
     idempotency_key: 'idem:lifecycle-evidence',
     principal_id: 'principal:A',
@@ -121,9 +121,9 @@ test('participant commands append evidence contestation annotation and terminati
     expected_version: 2,
     evidence_ref: 'artifact:X',
     occurred_at: '2026-09-02T07:41:00.000Z'
-  }, contextFor(store, 'actor:A'));
+  }, contextFor(store, 'actor:A')));
 
-  openContestation({
+  (await openContestation({
     command_id: 'cmd:lifecycle-contest-open',
     idempotency_key: 'idem:lifecycle-contest-open',
     principal_id: 'principal:B',
@@ -132,9 +132,9 @@ test('participant commands append evidence contestation annotation and terminati
     contestation_id: 'contest:C1',
     claim: 'scope disputed',
     occurred_at: '2026-09-02T07:42:00.000Z'
-  }, contextFor(store, 'actor:B'));
+  }, contextFor(store, 'actor:B')));
 
-  resolveContestation({
+  (await resolveContestation({
     command_id: 'cmd:lifecycle-contest-resolve',
     idempotency_key: 'idem:lifecycle-contest-resolve',
     principal_id: 'principal:A',
@@ -143,9 +143,9 @@ test('participant commands append evidence contestation annotation and terminati
     contestation_id: 'contest:C1',
     resolution: 'dismissed',
     occurred_at: '2026-09-02T07:43:00.000Z'
-  }, contextFor(store, 'actor:A'));
+  }, contextFor(store, 'actor:A')));
 
-  addAnnotation({
+  (await addAnnotation({
     command_id: 'cmd:lifecycle-annotation',
     idempotency_key: 'idem:lifecycle-annotation',
     principal_id: 'principal:B',
@@ -153,9 +153,9 @@ test('participant commands append evidence contestation annotation and terminati
     expected_version: 5,
     note: 'historical note',
     occurred_at: '2026-09-02T07:44:00.000Z'
-  }, contextFor(store, 'actor:B'));
+  }, contextFor(store, 'actor:B')));
 
-  terminateRelationship({
+  (await terminateRelationship({
     command_id: 'cmd:lifecycle-terminate',
     idempotency_key: 'idem:lifecycle-terminate',
     principal_id: 'principal:A',
@@ -163,7 +163,7 @@ test('participant commands append evidence contestation annotation and terminati
     expected_version: 6,
     reason: 'revoked',
     occurred_at: '2026-09-02T07:45:00.000Z'
-  }, contextFor(store, 'actor:A'));
+  }, contextFor(store, 'actor:A')));
 
   const state = foldRelationship(store.readStream('relationship', proposed.relationship_id));
   assert.equal(state.lifecycle, 'terminated');
@@ -174,13 +174,13 @@ test('participant commands append evidence contestation annotation and terminati
   assert.equal(state.stream_version, 7);
 });
 
-test('nonparticipant cannot add relationship evidence', () => {
+test('nonparticipant cannot add relationship evidence', async () => {
   const { proposeRelationship, addEvidence } = require('../relationship/service');
   const db = createTestDatabase();
   const store = new SQLiteEventStore(db);
-  const proposed = proposeRelationship(proposalCommand(), contextFor(store, 'actor:A'));
+  const proposed = (await proposeRelationship(proposalCommand(), contextFor(store, 'actor:A')));
 
-  assert.throws(() => addEvidence({
+  await assert.rejects(async () => (await addEvidence({
     command_id: 'cmd:evidence-denied',
     idempotency_key: 'idem:evidence-denied',
     principal_id: 'principal:C',
@@ -188,16 +188,16 @@ test('nonparticipant cannot add relationship evidence', () => {
     expected_version: 1,
     evidence_ref: 'artifact:bad',
     occurred_at: '2026-09-02T07:46:00.000Z'
-  }, contextFor(store, 'actor:C')), error => error && error.code === 'POLICY_DENIED');
+  }, contextFor(store, 'actor:C'))), error => error && error.code === 'POLICY_DENIED');
 
   assert.equal(store.readStream('relationship', proposed.relationship_id).length, 1);
 });
 
-test('successful relationship activation retry is deduplicated even though lifecycle is already active', () => {
+test('successful relationship activation retry is deduplicated even though lifecycle is already active', async () => {
   const { proposeRelationship, activateRelationship } = require('../relationship/service');
   const db = createTestDatabase();
   const store = new SQLiteEventStore(db);
-  const proposed = proposeRelationship(proposalCommand(), contextFor(store, 'actor:A'));
+  const proposed = (await proposeRelationship(proposalCommand(), contextFor(store, 'actor:A')));
   const command = {
     command_id: 'cmd:activate-retry',
     idempotency_key: 'idem:activate-retry',
@@ -207,9 +207,9 @@ test('successful relationship activation retry is deduplicated even though lifec
     occurred_at: '2026-09-02T07:50:00.000Z'
   };
 
-  const first = activateRelationship(command, contextFor(store, 'actor:B'));
+  const first = (await activateRelationship(command, contextFor(store, 'actor:B')));
   const countBefore = store.readStream('relationship', proposed.relationship_id).length;
-  const second = activateRelationship(command, contextFor(store, 'actor:B'));
+  const second = (await activateRelationship(command, contextFor(store, 'actor:B')));
   const countAfter = store.readStream('relationship', proposed.relationship_id).length;
 
   assert.equal(second.relationship_id, first.relationship_id);

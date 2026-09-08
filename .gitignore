@@ -3,3 +3,10 @@ node_modules/
 *.db
 *.sqlite
 *.zip
+
+wrangler.toml
+.trellis-storage-contract.wrangler.toml
+.trellis-d1-contract-state/
+.trellis-worker-integration.wrangler.toml
+.trellis-d1-integration-state/
+.wrangler/

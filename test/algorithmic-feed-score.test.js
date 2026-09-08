@@ -17,7 +17,7 @@ function publicationItem(id, recordedAt, offset = 1) {
   };
 }
 
-test('recency uses deterministic integer buckets at one reference time', () => {
+test('recency uses deterministic integer buckets at one reference time', async () => {
   const ref = '2026-09-03T12:00:00.000Z';
   assert.deepEqual(
     recencyComponent(publicationItem('pub:P', '2026-09-03T10:00:00.000Z'), ref),
@@ -29,7 +29,7 @@ test('recency uses deterministic integer buckets at one reference time', () => {
   );
 });
 
-test('future canonical time is clamped to zero age deterministically', () => {
+test('future canonical time is clamped to zero age deterministically', async () => {
   const ref = '2026-09-03T12:00:00.000Z';
   assert.equal(
     recencyComponent(publicationItem('pub:FUTURE', '2026-09-03T12:01:00.000Z'), ref).points,
@@ -37,7 +37,7 @@ test('future canonical time is clamped to zero age deterministically', () => {
   );
 });
 
-test('publication novelty distinguishes unseen, seen, and opened using integer points', () => {
+test('publication novelty distinguishes unseen, seen, and opened using integer points', async () => {
   assert.deepEqual(noveltyComponent(null, 'publication'), {
     type: 'not_seen_before', component: 'novelty', points: 1000
   });
@@ -49,13 +49,13 @@ test('publication novelty distinguishes unseen, seen, and opened using integer p
   });
 });
 
-test('social activity novelty never invents an opened state', () => {
+test('social activity novelty never invents an opened state', async () => {
   assert.deepEqual(noveltyComponent({ first_seen_at: '2026-09-03T11:00:00.000Z', first_opened_at: '2026-09-03T11:05:00.000Z' }, 'social_activity'), {
     type: 'seen_before', component: 'novelty', points: -500
   });
 });
 
-test('scoreItem reconciles integer components exactly to ranking reasons', () => {
+test('scoreItem reconciles integer components exactly to ranking reasons', async () => {
   const item = publicationItem('pub:P', '2026-09-03T10:00:00.000Z');
   const scored = scoreItem({
     item,
@@ -73,13 +73,13 @@ test('scoreItem reconciles integer components exactly to ranking reasons', () =>
   assert.equal(scored.ranking_reasons.reduce((sum, reason) => sum + reason.points, 0), scored.score.total_points);
 });
 
-test('equal personalized scores delegate exactly to the v1 chronological comparator', () => {
+test('equal personalized scores delegate exactly to the v1 chronological comparator', async () => {
   const a = { ...publicationItem('pub:A', '2026-09-03T10:00:00.000Z', 2), score: { total_points: 7000 } };
   const b = { ...publicationItem('pub:B', '2026-09-03T09:00:00.000Z', 3), score: { total_points: 7000 } };
   assert.equal(Math.sign(comparePersonalizedFeedItemsDesc(a, b)), Math.sign(compareFeedItemsDesc(a, b)));
 });
 
-test('higher total score always wins before chronological tie-break', () => {
+test('higher total score always wins before chronological tie-break', async () => {
   const olderHigh = { ...publicationItem('pub:HIGH', '2026-09-01T10:00:00.000Z', 1), score: { total_points: 8000 } };
   const newerLow = { ...publicationItem('pub:LOW', '2026-09-03T10:00:00.000Z', 999), score: { total_points: 7000 } };
   assert.ok(comparePersonalizedFeedItemsDesc(olderHigh, newerLow) < 0);

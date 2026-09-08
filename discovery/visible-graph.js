@@ -43,9 +43,9 @@ function communityPreview(surface) {
   };
 }
 
-function entityKind(eventStore, entityId, cache) {
+async function entityKind(eventStore, entityId, cache) {
   if (cache.has(entityId)) return cache.get(entityId);
-  const events = eventStore.readStream('entity', entityId);
+  const events = await eventStore.readStream('entity', entityId);
   if (events.length === 0) {
     cache.set(entityId, null);
     return null;
@@ -55,7 +55,7 @@ function entityKind(eventStore, entityId, cache) {
   return cache.get(entityId);
 }
 
-function buildDiscoverySnapshot({
+async function buildDiscoverySnapshot({
   subjectActorId,
   viewerContext = {},
   db,
@@ -63,13 +63,13 @@ function buildDiscoverySnapshot({
   disclosurePolicy
 }) {
   const { viewer_scope } = authorizeDiscoverySubject(subjectActorId, viewerContext);
-  const membershipResolver = createMembershipResolver(db);
+  const membershipResolver = await createMembershipResolver(db);
 
-  const rows = db.prepare(`
+  const rows = await db.all(`
     SELECT * FROM relationships_current
     WHERE lifecycle IN ('active', 'proposed')
     ORDER BY relationship_id
-  `).all();
+  `);
 
   const relationships = rows
     .filter(row => canViewRelationship(row, viewerContext, disclosurePolicy, membershipResolver))
@@ -85,14 +85,14 @@ function buildDiscoverySnapshot({
   const actorIds = [];
   const communityIds = [];
   for (const entityId of [...referencedIds].sort()) {
-    const kind = entityKind(eventStore, entityId, kindCache);
+    const kind = await entityKind(eventStore, entityId, kindCache);
     if (kind === 'actor') actorIds.push(entityId);
     else if (kind === 'community') communityIds.push(entityId);
   }
 
   const actors = {};
   for (const actorId of actorIds) {
-    const profile = buildActorProfile({
+    const profile = await buildActorProfile({
       actorId,
       viewerContext,
       eventStore,
@@ -105,7 +105,7 @@ function buildDiscoverySnapshot({
 
   const communities = {};
   for (const communityId of communityIds) {
-    const surface = buildCommunitySurface({
+    const surface = await buildCommunitySurface({
       communityId,
       viewerContext,
       db,

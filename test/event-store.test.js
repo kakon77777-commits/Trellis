@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createTestDatabase } = require('./helpers/test-db');
 
-test('foundation migration creates canonical and projection tables', () => {
+test('foundation migration creates canonical and projection tables', async () => {
   const db = createTestDatabase();
   const rows = db.prepare(`
     SELECT name FROM sqlite_master
@@ -66,7 +66,7 @@ function makeEvent(eventId, type = 'relationship.proposed') {
   };
 }
 
-test('append assigns monotonic per-stream sequence', () => {
+test('append assigns monotonic per-stream sequence', async () => {
   const { SQLiteEventStore } = require('../events/sqlite-event-store');
   const db = createTestDatabase();
   const store = new SQLiteEventStore(db);
@@ -99,7 +99,7 @@ test('append assigns monotonic per-stream sequence', () => {
   );
 });
 
-test('stale expectedVersion rejects without writing an event', () => {
+test('stale expectedVersion rejects without writing an event', async () => {
   const { SQLiteEventStore } = require('../events/sqlite-event-store');
   const db = createTestDatabase();
   const store = new SQLiteEventStore(db);
@@ -129,7 +129,7 @@ test('stale expectedVersion rejects without writing an event', () => {
   assert.equal(store.readStream('relationship', 'rel:test-1').length, 1);
 });
 
-test('same idempotency key and same digest returns prior result without duplicate event', () => {
+test('same idempotency key and same digest returns prior result without duplicate event', async () => {
   const { SQLiteEventStore } = require('../events/sqlite-event-store');
   const db = createTestDatabase();
   const store = new SQLiteEventStore(db);
@@ -150,7 +150,7 @@ test('same idempotency key and same digest returns prior result without duplicat
   assert.equal(store.readStream('relationship', 'rel:test-1').length, 1);
 });
 
-test('same idempotency key and different digest rejects', () => {
+test('same idempotency key and different digest rejects', async () => {
   const { SQLiteEventStore } = require('../events/sqlite-event-store');
   const db = createTestDatabase();
   const store = new SQLiteEventStore(db);
@@ -176,7 +176,7 @@ test('same idempotency key and different digest rejects', () => {
   assert.equal(store.readStream('relationship', 'rel:test-1').length, 1);
 });
 
-test('EventStore owns recorded_at and ignores caller-forged recorded time', () => {
+test('EventStore owns recorded_at and ignores caller-forged recorded time', async () => {
   const { SQLiteEventStore } = require('../events/sqlite-event-store');
   const db = createTestDatabase();
   const store = new SQLiteEventStore(db, {
@@ -207,7 +207,7 @@ test('EventStore owns recorded_at and ignores caller-forged recorded time', () =
   );
 });
 
-test('readEvent returns null when event_id does not exist', () => {
+test('readEvent returns null when event_id does not exist', async () => {
   const { SQLiteEventStore } = require('../events/sqlite-event-store');
   const db = createTestDatabase();
   const store = new SQLiteEventStore(db);

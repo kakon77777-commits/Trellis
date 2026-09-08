@@ -1,0 +1,101 @@
+{
+  "schema": "trellis-storage-layer-c-local-v1",
+  "generated_at": "2026-09-08T06:27:04.336Z",
+  "worker_process_restart_persistence": true,
+  "seed": {
+    "status": "PASS",
+    "fixture": {
+      "actor_ids": [
+        "actor:A",
+        "actor:B"
+      ],
+      "community_id": "community:C",
+      "relationship_id": "rel:265765d6251fcf7d1281bd77",
+      "publication_id": "pub:p1",
+      "second_publication_id": "pub:p2",
+      "reply_publication_id": "pub:reply"
+    }
+  },
+  "public_route_status": {
+    "/": 200,
+    "/api/schema": 200,
+    "/.well-known/trellis.json": 200,
+    "/api/public/feed": 200,
+    "/api/public/directory": 200
+  },
+  "semantic_parity": {
+    "public_feed": {
+      "human_route": "/",
+      "api_route": "/api/public/feed",
+      "fact_count": 63
+    },
+    "public_directory": {
+      "human_route": "/discover",
+      "api_route": "/api/public/directory",
+      "fact_count": 33
+    },
+    "actor": {
+      "human_route": "/actors/actor%3AA",
+      "api_route": "/api/actors/actor%3AA",
+      "fact_count": 21
+    },
+    "publication": {
+      "human_route": "/publications/pub%3Ap1",
+      "api_route": "/api/publications/pub%3Ap1",
+      "fact_count": 24
+    },
+    "community": {
+      "human_route": "/communities/community%3AC",
+      "api_route": "/api/communities/community%3AC",
+      "fact_count": 15
+    }
+  },
+  "w6_claimed_actor_status": 400,
+  "w10_authored_script_escaped": true,
+  "w11_personalized_owner_feed_status": 404,
+  "writes_enabled": false,
+  "hidden_noninterference": {
+    "feed_equal": true,
+    "directory_equal": true,
+    "hidden_and_missing_same_404": true,
+    "before_feed_snapshot_ref": "b85c442c92ef85f67790b82cde5c5365e2f8def8cdf3783de0aa915c93fd6355",
+    "after_feed_snapshot_ref": "b85c442c92ef85f67790b82cde5c5365e2f8def8cdf3783de0aa915c93fd6355",
+    "before_directory_snapshot_ref": "ccce3a3625808e714ed376689fc49a91b579d73720884aef6f1c68224ca90a1c",
+    "after_directory_snapshot_ref": "ccce3a3625808e714ed376689fc49a91b579d73720884aef6f1c68224ca90a1c"
+  },
+  "canonical_verification": {
+    "hash_chain": {
+      "ok": true,
+      "failureAt": null
+    },
+    "command_receipt": {
+      "command_id": "pub:p1",
+      "idempotency_key": "pub:p1",
+      "command_digest": "6d47d762b7ab28d666aed03dd3a570a5e0c8917ab35d45082c3da6b413d9864b",
+      "status": "accepted",
+      "result_event_ids": [
+        "evt:pub:p1:created"
+      ],
+      "stream_version_before": 0,
+      "stream_version_after": 1,
+      "authority_receipt_ref": "authz:2026248f2671fd4d0633b6a7",
+      "created_at": "2026-09-08T01:00:00.000Z"
+    },
+    "projection": {
+      "publication_id": "pub:p1",
+      "author_actor_id": "actor:A",
+      "lifecycle": "active",
+      "visibility": "public",
+      "current_body": "Hello <script>alert(1)</script>",
+      "stream_version": 1
+    },
+    "canonical_event_count": 17,
+    "append_batch_guard_count": 0
+  },
+  "wrangler": {
+    "database_name": "evemisslab-trellis",
+    "binding": "DB",
+    "config": ".trellis-worker-integration.wrangler.toml",
+    "persist_dir": "C:\\Users\\kakon\\AppData\\Local\\Temp\\trellis-storage-runtime-persist\\worker-integration-local"
+  }
+}

@@ -17,7 +17,7 @@ function allowRegistration(request) {
   };
 }
 
-test('same display name model and runtime do not collapse two actors', () => {
+test('same display name model and runtime do not collapse two actors', async () => {
   const { registerActor } = require('../entity/service');
   const db = createTestDatabase();
   const eventStore = new SQLiteEventStore(db);
@@ -29,23 +29,23 @@ test('same display name model and runtime do not collapse two actors', () => {
     occurred_at: '2026-09-02T07:00:00.000Z'
   };
 
-  const a = registerActor({
+  const a = (await registerActor({
     ...common,
     command_id: 'cmd:actor-A',
     idempotency_key: 'idem:actor-A'
-  }, { eventStore, authorize: allowRegistration });
-  const b = registerActor({
+  }, { eventStore, authorize: allowRegistration }));
+  const b = (await registerActor({
     ...common,
     command_id: 'cmd:actor-B',
     idempotency_key: 'idem:actor-B'
-  }, { eventStore, authorize: allowRegistration });
+  }, { eventStore, authorize: allowRegistration }));
 
   assert.notEqual(a.entity_id, b.entity_id);
   assert.equal(eventStore.readStream('entity', a.entity_id)[0].payload.display_name, 'Aletheia');
   assert.equal(eventStore.readStream('entity', b.entity_id)[0].payload.display_name, 'Aletheia');
 });
 
-test('runtime binding changes do not change actor identity', () => {
+test('runtime binding changes do not change actor identity', async () => {
   const { foldEntity } = require('../entity/fold');
   const state = foldEntity([
     {
@@ -77,7 +77,7 @@ test('runtime binding changes do not change actor identity', () => {
   assert.deepEqual(state.runtime_bindings.map(x => x.runtime_id), ['runtime:R1', 'runtime:R2']);
 });
 
-test('identity assertions remain evidence and do not mutate stable actor id', () => {
+test('identity assertions remain evidence and do not mutate stable actor id', async () => {
   const { foldEntity } = require('../entity/fold');
   const state = foldEntity([
     {
@@ -99,7 +99,7 @@ test('identity assertions remain evidence and do not mutate stable actor id', ()
   assert.equal(state.assertions[0].target_entity_id, 'actor:B');
 });
 
-test('v0.1 exposes no actor merge or retirement API', () => {
+test('v0.1 exposes no actor merge or retirement API', async () => {
   const service = require('../entity/service');
   assert.equal(service.mergeActor, undefined);
   assert.equal(service.retireActor, undefined);

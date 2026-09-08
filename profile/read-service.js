@@ -1,6 +1,6 @@
 const { foldEntity } = require('../entity/fold');
 const { foldProfileAssertions } = require('./fold');
-const { loadAuthorityReceipt, classifyAssertionProvenance } = require('./provenance');
+const { loadAuthorityReceiptAsync, classifyAssertionProvenance } = require('./provenance');
 const {
   isSelfOrRepresentative,
   canViewAssertion,
@@ -19,18 +19,18 @@ const MULTI_PRESENTATION = {
   'profile:external_link:v1': 'external_links'
 };
 
-function loadRelationships(db, actorId) {
-  return db.prepare(`
+async function loadRelationships(db, actorId) {
+  return await db.all(`
     SELECT * FROM relationships_current
     WHERE lifecycle = 'active'
       AND (source_entity_id = ? OR target_entity_id = ?)
     ORDER BY relationship_id
-  `).all(actorId, actorId);
+  `,[actorId, actorId]);
 }
 
-function assertionView(assertion, eventById, db) {
+async function assertionView(assertion, eventById, db) {
   const event = eventById.get(assertion.event_id);
-  const receipt = event ? loadAuthorityReceipt(db, event.authority_receipt_ref) : null;
+  const receipt = event ? await loadAuthorityReceiptAsync(db, event.authority_receipt_ref) : null;
   return {
     value: assertion.value,
     assertion_id: assertion.assertion_id,
@@ -38,9 +38,9 @@ function assertionView(assertion, eventById, db) {
   };
 }
 
-function historyView(assertion, eventById, db) {
+async function historyView(assertion, eventById, db) {
   const event = eventById.get(assertion.event_id);
-  const receipt = event ? loadAuthorityReceipt(db, event.authority_receipt_ref) : null;
+  const receipt = event ? await loadAuthorityReceiptAsync(db, event.authority_receipt_ref) : null;
   return {
     assertion_id: assertion.assertion_id,
     field_ref: assertion.field_ref,
@@ -72,7 +72,7 @@ function defaultRuntimeDisclosurePolicy(binding, viewerContext, actorId) {
   return isSelfOrRepresentative(viewerContext, actorId) ? 'allow' : 'deny';
 }
 
-function buildActorProfile({
+async function buildActorProfile({
   actorId,
   viewerContext = {},
   eventStore,
@@ -81,13 +81,13 @@ function buildActorProfile({
   runtimeDisclosurePolicy = defaultRuntimeDisclosurePolicy,
   membershipResolver
 }) {
-  const events = eventStore.readStream('entity', actorId);
+  const events = await eventStore.readStream('entity', actorId);
   if (events.length === 0) return null;
   const entityState = foldEntity(events);
   if (entityState.entity_kind !== 'actor') return null;
   const profileState = foldProfileAssertions(events);
   const eventById = new Map(events.map(event => [event.event_id, event]));
-  const relationships = loadRelationships(db, actorId);
+  const relationships = await loadRelationships(db, actorId);
 
   const visibleRelationships = relationships
     .filter(relationship => canViewRelationship(relationship, viewerContext, disclosurePolicy, membershipResolver))
@@ -97,14 +97,14 @@ function buildActorProfile({
   for (const [fieldRef, key] of Object.entries(SINGLE_PRESENTATION)) {
     const assertion = profileState.active_single[fieldRef];
     if (assertion && canViewAssertion(assertion, actorId, viewerContext, relationships, disclosurePolicy, membershipResolver)) {
-      presentation[key] = assertionView(assertion, eventById, db);
+      presentation[key] = await assertionView(assertion, eventById, db);
     }
   }
   for (const [fieldRef, key] of Object.entries(MULTI_PRESENTATION)) {
     const assertions = profileState.active_multi[fieldRef] ?? [];
-    presentation[key] = assertions
-      .filter(assertion => canViewAssertion(assertion, actorId, viewerContext, relationships, disclosurePolicy, membershipResolver))
-      .map(assertion => assertionView(assertion, eventById, db));
+    const visibleAssertions = assertions
+      .filter(assertion => canViewAssertion(assertion, actorId, viewerContext, relationships, disclosurePolicy, membershipResolver));
+    presentation[key] = await Promise.all(visibleAssertions.map(assertion => assertionView(assertion, eventById, db)));
   }
 
   const runtimeBindings = entityState.runtime_bindings.filter(binding =>
@@ -128,7 +128,7 @@ function buildActorProfile({
   };
 
   if (self) {
-    result.assertion_history = profileState.history.map(assertion => historyView(assertion, eventById, db));
+    result.assertion_history = await Promise.all(profileState.history.map(assertion => historyView(assertion, eventById, db)));
   }
   return result;
 }

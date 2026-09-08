@@ -4,14 +4,14 @@ const { relationshipViewerScope } = require('./read-policy');
 const { projectRelationshipHistory } = require('./history');
 const { availableRelationshipActions } = require('./action-hints');
 
-function loadRelationshipRow(db, relationshipId) {
-  return db.prepare(`
+async function loadRelationshipRow(db, relationshipId) {
+  return (await db.first(`
     SELECT * FROM relationships_current
     WHERE relationship_id = ?
-  `).get(relationshipId) ?? null;
+  `,[relationshipId])) ?? null;
 }
 
-function loadRelationshipDetail({
+async function loadRelationshipDetail({
   relationshipId,
   viewerContext = {},
   eventStore,
@@ -19,14 +19,14 @@ function loadRelationshipDetail({
   disclosurePolicy,
   membershipResolver
 }) {
-  const relationship = loadRelationshipRow(db, relationshipId);
+  const relationship = await loadRelationshipRow(db, relationshipId);
   if (!relationship) return null;
   if (!canViewRelationship(relationship, viewerContext, disclosurePolicy, membershipResolver)) return null;
 
-  const events = eventStore.readStream('relationship', relationshipId);
+  const events = await eventStore.readStream('relationship', relationshipId);
   if (events.length === 0) return null;
   const state = foldRelationship(events);
-  const projectedHistory = projectRelationshipHistory({ events, db });
+  const projectedHistory = await projectRelationshipHistory({ events, db });
   return {
     relationship_id: state.relationship_id,
     source_actor: {

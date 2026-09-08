@@ -10,18 +10,18 @@ const { validateCommunityAssertionPayload } = require('./schemas');
 function digestCommand(command) { return createHash('sha256').update(canonicalStringify(command), 'utf8').digest('hex'); }
 function required(command, field) { if (typeof command[field] !== 'string' || command[field].length === 0) throw new TypeError(`INVALID_COMMUNITY_COMMAND:${field}`); }
 
-function addCommunityAssertion(command, context) {
+async function addCommunityAssertion(command, context) {
   if (!command || typeof command !== 'object') throw new TypeError('INVALID_COMMUNITY_COMMAND');
   for (const field of ['command_id','idempotency_key','principal_id','community_id','field_ref']) required(command, field);
   const commandDigest = digestCommand(command);
   const assertionId = command.assertion_id ?? deriveId('assert', command.command_id);
-  const prior = context.eventStore.lookupIdempotency(command.idempotency_key);
+  const prior = await context.eventStore.lookupIdempotency(command.idempotency_key);
   if (prior) {
     if (prior.command_digest !== commandDigest) throw new IdempotencyConflictError();
     return { assertion_id: assertionId, receipt:{ ...prior, deduplicated:true } };
   }
 
-  const history = context.eventStore.readStream('entity', command.community_id);
+  const history = await context.eventStore.readStream('entity', command.community_id);
   const entityState = foldEntity(history);
   if (entityState.lifecycle !== 'active' || entityState.entity_kind !== 'community' || entityState.entity_id !== command.community_id) {
     throw new InvalidTransitionError('COMMUNITY_NOT_ACTIVE');
@@ -57,7 +57,7 @@ function addCommunityAssertion(command, context) {
   });
   if (!authorityReceipt || authorityReceipt.decision !== 'allow') throw new PolicyDeniedError();
 
-  const receipt = context.eventStore.append({
+  const receipt = await context.eventStore.append({
     streamType:'entity', streamId:command.community_id, expectedVersion:entityState.stream_version,
     events:[draft], authorityReceipt,
     commandReceipt:{ command_id:command.command_id, idempotency_key:command.idempotency_key, command_digest:commandDigest, status:'accepted', created_at:timestamp }

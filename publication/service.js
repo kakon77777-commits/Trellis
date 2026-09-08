@@ -22,9 +22,9 @@ function ensureCommand(command, required) {
   for (const field of ['command_id', 'idempotency_key', 'principal_id', ...required]) requireString(command, field);
 }
 
-function idempotencyGate(command, context, publicationId) {
+async function idempotencyGate(command, context, publicationId) {
   const commandDigest = digestCommand(command);
-  const prior = context.eventStore.lookupIdempotency(command.idempotency_key);
+  const prior = await context.eventStore.lookupIdempotency(command.idempotency_key);
   if (!prior) return { commandDigest, result: null };
   if (prior.command_digest !== commandDigest) throw new IdempotencyConflictError();
   return { commandDigest, result: { publication_id: publicationId, receipt: { ...prior, deduplicated: true } } };
@@ -42,8 +42,8 @@ function baseEvent(command, context, eventType, suffix, payload) {
   };
 }
 
-function requireActiveActor(eventStore, actorId) {
-  const state = foldEntity(eventStore.readStream('entity', actorId));
+async function requireActiveActor(eventStore, actorId) {
+  const state = foldEntity(await eventStore.readStream('entity', actorId));
   if (state.lifecycle !== 'active' || state.entity_kind !== 'actor' || state.entity_id !== actorId) {
     throw new InvalidTransitionError('PUBLICATION_AUTHOR_NOT_ACTIVE');
   }
@@ -59,15 +59,15 @@ function normalizeAudience(command) {
   return [...new Set(command.audience_actor_ids ?? [])].sort();
 }
 
-function createPublication(command, context) {
+async function createPublication(command, context) {
   ensureCommand(command, ['author_actor_id', 'publication_type']);
   const publicationId = command.publication_id ?? deriveId('pub', command.command_id);
-  const gate = idempotencyGate(command, context, publicationId);
+  const gate = await idempotencyGate(command, context, publicationId);
   if (gate.result) return gate.result;
   for (const field of ['reference_preview', 'parent_body', 'quoted_body', 'cached_reference_body']) {
     if (Object.prototype.hasOwnProperty.call(command, field)) throw new TypeError('PUBLICATION_REFERENCE_COPY_FORBIDDEN');
   }
-  requireActiveActor(context.eventStore, command.author_actor_id);
+  await requireActiveActor(context.eventStore, command.author_actor_id);
   const policy = resolvePublicationCreationPolicy(command);
   const payload = {
     publication_id: publicationId,
@@ -85,9 +85,9 @@ function createPublication(command, context) {
   validatePublicationCreationPayload(payload);
   const targetRef = payload.reply_to_ref ?? payload.quote_of_ref;
   if (targetRef) {
-    const parentEvents = context.eventStore.readStream('publication', targetRef);
+    const parentEvents = await context.eventStore.readStream('publication', targetRef);
     const parentState = parentEvents.length ? foldPublication(parentEvents) : null;
-    validatePublicationReferenceCreation({ childDraft: payload, parentState, actorId: command.author_actor_id, db: context.db });
+    await validatePublicationReferenceCreation({ childDraft: payload, parentState, actorId: command.author_actor_id, db: context.db });
   }
   const timestamp = command.occurred_at ?? context.evaluatedAt ?? new Date().toISOString();
   const authorityReceipt = authorityOrThrow({
@@ -95,12 +95,12 @@ function createPublication(command, context) {
     actor_id: command.author_actor_id, principal_actor_id: context.principalActorId,
     requested_action: 'publication.create', aggregate_id: publicationId,
     author_actor_id: command.author_actor_id, scope_ref: policy.scope_ref,
-    active_membership: activeCommunityMembership(context.db, policy.scope_ref, command.author_actor_id),
+    active_membership: await activeCommunityMembership(context.db, policy.scope_ref, command.author_actor_id),
     capability_grants: context.capabilityGrants ?? [],
     policy_ref: policy.publication_policy_ref, credential_refs: context.credentialRefs ?? [],
     evaluated_at: context.evaluatedAt ?? timestamp
   });
-  const receipt = context.eventStore.append({
+  const receipt = await context.eventStore.append({
     streamType: 'publication', streamId: publicationId, expectedVersion: 0,
     events: [baseEvent(command, context, 'publication.created', 'created', payload)], authorityReceipt,
     commandReceipt: { command_id: command.command_id, idempotency_key: command.idempotency_key, command_digest: gate.commandDigest, status: 'accepted', created_at: timestamp }
@@ -108,18 +108,18 @@ function createPublication(command, context) {
   return { publication_id: publicationId, receipt };
 }
 
-function loadPublicationForMutation(command, context) {
-  const events = context.eventStore.readStream('publication', command.publication_id);
+async function loadPublicationForMutation(command, context) {
+  const events = await context.eventStore.readStream('publication', command.publication_id);
   if (events.length === 0) throw new InvalidTransitionError('PUBLICATION_NOT_FOUND');
   return { events, state: foldPublication(events) };
 }
 
-function revisePublication(command, context) {
+async function revisePublication(command, context) {
   ensureCommand(command, ['publication_id']);
   if (typeof command.body !== 'string') throw new TypeError('INVALID_PUBLICATION_COMMAND:body');
-  const gate = idempotencyGate(command, context, command.publication_id);
+  const gate = await idempotencyGate(command, context, command.publication_id);
   if (gate.result) return gate.result;
-  const { events, state } = loadPublicationForMutation(command, context);
+  const { events, state } = await loadPublicationForMutation(command, context);
   if (state.lifecycle !== 'active') throw new InvalidTransitionError('PUBLICATION_CANNOT_REVISE');
   const timestamp = command.occurred_at ?? context.evaluatedAt ?? new Date().toISOString();
   const authorityReceipt = authorityOrThrow({
@@ -132,7 +132,7 @@ function revisePublication(command, context) {
     revision_number: state.current_revision + 1, supersedes_revision: state.current_revision, body: command.body
   });
   foldPublication([...events, { ...draft, stream_seq: state.stream_version + 1 }]);
-  const receipt = context.eventStore.append({
+  const receipt = await context.eventStore.append({
     streamType: 'publication', streamId: command.publication_id, expectedVersion: command.expected_version,
     events: [draft], authorityReceipt,
     commandReceipt: { command_id: command.command_id, idempotency_key: command.idempotency_key, command_digest: gate.commandDigest, status: 'accepted', created_at: timestamp }
@@ -140,11 +140,11 @@ function revisePublication(command, context) {
   return { publication_id: command.publication_id, receipt };
 }
 
-function withdrawPublication(command, context) {
+async function withdrawPublication(command, context) {
   ensureCommand(command, ['publication_id']);
-  const gate = idempotencyGate(command, context, command.publication_id);
+  const gate = await idempotencyGate(command, context, command.publication_id);
   if (gate.result) return gate.result;
-  const { events, state } = loadPublicationForMutation(command, context);
+  const { events, state } = await loadPublicationForMutation(command, context);
   if (state.lifecycle !== 'active') throw new InvalidTransitionError('PUBLICATION_CANNOT_WITHDRAW');
   const timestamp = command.occurred_at ?? context.evaluatedAt ?? new Date().toISOString();
   const authorityReceipt = authorityOrThrow({
@@ -155,7 +155,7 @@ function withdrawPublication(command, context) {
   });
   const draft = baseEvent(command, context, 'publication.withdrawn', 'withdrawn', { reason: command.reason ?? 'author_withdrawn' });
   foldPublication([...events, { ...draft, stream_seq: state.stream_version + 1 }]);
-  const receipt = context.eventStore.append({
+  const receipt = await context.eventStore.append({
     streamType: 'publication', streamId: command.publication_id, expectedVersion: command.expected_version,
     events: [draft], authorityReceipt,
     commandReceipt: { command_id: command.command_id, idempotency_key: command.idempotency_key, command_digest: gate.commandDigest, status: 'accepted', created_at: timestamp }

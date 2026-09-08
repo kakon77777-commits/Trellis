@@ -11,9 +11,9 @@ function digestCommand(command) {
 }
 
 
-function idempotencyGate(command, context, relationshipId) {
+async function idempotencyGate(command, context, relationshipId) {
   const commandDigest = digestCommand(command);
-  const prior = context.eventStore.lookupIdempotency(command.idempotency_key);
+  const prior = await context.eventStore.lookupIdempotency(command.idempotency_key);
   if (!prior) return { commandDigest, result: null };
   if (prior.command_digest !== commandDigest) throw new IdempotencyConflictError();
   return {
@@ -58,10 +58,10 @@ function authorityOrThrow(request) {
   return receipt;
 }
 
-function proposeRelationship(command, context) {
+async function proposeRelationship(command, context) {
   ensureCommand(command, ['source_entity_id', 'target_entity_id', 'relationship_type']);
   const relationshipId = command.relationship_id ?? deriveId('rel', command.command_id);
-  const gate = idempotencyGate(command, context, relationshipId);
+  const gate = await idempotencyGate(command, context, relationshipId);
   if (gate.result) return gate.result;
   const policy = resolveRelationshipPolicy(command.relationship_type);
   const visibility = resolveVisibility({ requestedVisibility: command.visibility ?? null, policy });
@@ -98,7 +98,7 @@ function proposeRelationship(command, context) {
     events.push(baseEvent(command, context, 'relationship.activated', 'activated', {}));
   }
 
-  const receipt = context.eventStore.append({
+  const receipt = await context.eventStore.append({
     streamType: 'relationship',
     streamId: relationshipId,
     expectedVersion: 0,
@@ -116,11 +116,11 @@ function proposeRelationship(command, context) {
   return { relationship_id: relationshipId, receipt };
 }
 
-function activateRelationship(command, context) {
+async function activateRelationship(command, context) {
   ensureCommand(command, ['relationship_id']);
-  const gate = idempotencyGate(command, context, command.relationship_id);
+  const gate = await idempotencyGate(command, context, command.relationship_id);
   if (gate.result) return gate.result;
-  const events = context.eventStore.readStream('relationship', command.relationship_id);
+  const events = await context.eventStore.readStream('relationship', command.relationship_id);
   const state = foldRelationship(events);
   if (state.lifecycle !== 'proposed') throw new InvalidTransitionError('RELATIONSHIP_CANNOT_ACTIVATE');
   const policy = resolveRelationshipPolicy(state.relationship_type, state.taxonomy_ref);
@@ -139,7 +139,7 @@ function activateRelationship(command, context) {
     evaluated_at: context.evaluatedAt ?? timestamp
   });
 
-  const receipt = context.eventStore.append({
+  const receipt = await context.eventStore.append({
     streamType: 'relationship',
     streamId: command.relationship_id,
     expectedVersion: command.expected_version,
@@ -175,12 +175,12 @@ function rejectImmutableMutationAttempt(command) {
   }
 }
 
-function appendRelationshipEvent(command, context, { eventType, suffix, action, payload }) {
+async function appendRelationshipEvent(command, context, { eventType, suffix, action, payload }) {
   ensureCommand(command, ['relationship_id']);
-  const gate = idempotencyGate(command, context, command.relationship_id);
+  const gate = await idempotencyGate(command, context, command.relationship_id);
   if (gate.result) return gate.result;
   rejectImmutableMutationAttempt(command);
-  const history = context.eventStore.readStream('relationship', command.relationship_id);
+  const history = await context.eventStore.readStream('relationship', command.relationship_id);
   const state = foldRelationship(history);
   const policy = resolveRelationshipPolicy(state.relationship_type, state.taxonomy_ref);
   const timestamp = command.occurred_at ?? context.evaluatedAt ?? new Date().toISOString();
@@ -205,7 +205,7 @@ function appendRelationshipEvent(command, context, { eventType, suffix, action, 
     { ...draft, stream_seq: state.stream_version + 1 }
   ]);
 
-  const receipt = context.eventStore.append({
+  const receipt = await context.eventStore.append({
     streamType: 'relationship',
     streamId: command.relationship_id,
     expectedVersion: command.expected_version,
@@ -222,8 +222,8 @@ function appendRelationshipEvent(command, context, { eventType, suffix, action, 
   return { relationship_id: command.relationship_id, receipt };
 }
 
-function terminateRelationship(command, context) {
-  return appendRelationshipEvent(command, context, {
+async function terminateRelationship(command, context) {
+  return await appendRelationshipEvent(command, context, {
     eventType: 'relationship.terminated',
     suffix: 'terminated',
     action: 'relationship.terminate',
@@ -231,9 +231,9 @@ function terminateRelationship(command, context) {
   });
 }
 
-function openContestation(command, context) {
+async function openContestation(command, context) {
   ensureCommand(command, ['relationship_id', 'contestation_id']);
-  return appendRelationshipEvent(command, context, {
+  return await appendRelationshipEvent(command, context, {
     eventType: 'relationship.contestation_opened',
     suffix: 'contestation-opened',
     action: 'relationship.contestation_open',
@@ -245,9 +245,9 @@ function openContestation(command, context) {
   });
 }
 
-function resolveContestation(command, context) {
+async function resolveContestation(command, context) {
   ensureCommand(command, ['relationship_id', 'contestation_id', 'resolution']);
-  return appendRelationshipEvent(command, context, {
+  return await appendRelationshipEvent(command, context, {
     eventType: 'relationship.contestation_resolved',
     suffix: 'contestation-resolved',
     action: 'relationship.contestation_resolve',
@@ -259,9 +259,9 @@ function resolveContestation(command, context) {
   });
 }
 
-function addEvidence(command, context) {
+async function addEvidence(command, context) {
   ensureCommand(command, ['relationship_id', 'evidence_ref']);
-  return appendRelationshipEvent(command, context, {
+  return await appendRelationshipEvent(command, context, {
     eventType: 'relationship.evidence_added',
     suffix: 'evidence-added',
     action: 'relationship.evidence_add',
@@ -269,9 +269,9 @@ function addEvidence(command, context) {
   });
 }
 
-function addAnnotation(command, context) {
+async function addAnnotation(command, context) {
   ensureCommand(command, ['relationship_id', 'note']);
-  return appendRelationshipEvent(command, context, {
+  return await appendRelationshipEvent(command, context, {
     eventType: 'relationship.annotation_added',
     suffix: 'annotation-added',
     action: 'relationship.annotation_add',

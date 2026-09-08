@@ -16,17 +16,17 @@ function rankingReferenceTimeForRequest({ cursor = null, now }) {
   return requireTrustedReferenceTime(value);
 }
 
-function loadPersonalizedHomeFeedSurface(args) {
+async function loadPersonalizedHomeFeedSurface(args) {
   if (Object.prototype.hasOwnProperty.call(args ?? {}, 'rankingReferenceTime') ||
       Object.prototype.hasOwnProperty.call(args ?? {}, 'ranking_reference_time')) {
     throw new TypeError('FEED_V2_CLIENT_REFERENCE_TIME_FORBIDDEN');
   }
   const subjectActorId = args?.subjectActorId;
   const viewerActorId = args?.viewerContext?.viewer_actor_id;
-  if (viewerActorId !== subjectActorId) return loadHomeFeedSurface(args);
+  if (viewerActorId !== subjectActorId) return await loadHomeFeedSurface(args);
 
   const rankingReferenceTime = rankingReferenceTimeForRequest({ cursor: args.cursor ?? null, now: args.now });
-  const feed = buildPersonalizedHomeFeed({
+  const feed = await buildPersonalizedHomeFeed({
     subjectActorId,
     viewerContext: args.viewerContext,
     db: args.db,

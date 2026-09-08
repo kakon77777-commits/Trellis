@@ -8,7 +8,7 @@ const {renderRankingExplanation}=require('../web/render/context-panel');
 const {semanticFactsFromViewModel,parseSemanticFactMarkers}=require('../web/render/semantic-facts');
 
 async function withServer(fn){
- const {db,store}=setupWebSystem(); const server=createTrellisServer({db,eventStore:store});
+ const {db,sql,store}=(await setupWebSystem()); const server=createTrellisServer({sql,eventStore:store});
  await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});
  const {port}=server.address();
  try{return await fn({base:`http://127.0.0.1:${port}`,db,store});}
@@ -25,7 +25,7 @@ test('W1/W6/W9/W11: real HTTP server preserves public parity and never fabricate
  const meta=JSON.parse((await textResponse(base,'/.well-known/trellis.json')).body);assert.equal(meta.writes_enabled,false);
 }));
 
-test('W2: context panel is exactly accountable to backend reason code/point data',()=>{
+test('W2: context panel is exactly accountable to backend reason code/point data',async ()=>{
  const item={score:{total_points:6500},ranking_reasons:[{type:'followed_actor',component:'source',points:2000},{type:'recent_24h',component:'recency',points:4000},{type:'seen_before',component:'novelty',points:500}]};
  // Deliberately inconsistent fixture must be visible rather than silently corrected by Web.
  const html=renderRankingExplanation(item);
@@ -33,7 +33,7 @@ test('W2: context panel is exactly accountable to backend reason code/point data
  assert.match(html,/data-total-points="6500"/);
 });
 
-test('W3/W4/W5/W8: adapter source boundaries stay stateless and non-authoritative',()=>{
+test('W3/W4/W5/W8: adapter source boundaries stay stateless and non-authoritative',async ()=>{
  assert.equal(CONTRACT_REGISTRY.http,undefined); assert.equal(CONTRACT_REGISTRY.web,undefined);
  const webRoot=path.join(__dirname,'..','web');
  const files=[]; const walk=d=>{for(const e of fs.readdirSync(d,{withFileTypes:true})){const f=path.join(d,e.name);if(e.isDirectory())walk(f);else if(f.endsWith('.js'))files.push(f);}};walk(webRoot);
@@ -51,8 +51,8 @@ test('W7/W10/W12 and read-only GET contract: hidden facts do not leak and GET ro
  assert.deepEqual(counts(db),before);
 }));
 
-test('release manifest includes runnable Web command and syntax gate covers adapter layers',()=>{
+test('release manifest includes runnable Web command and syntax gate covers adapter layers',async ()=>{
  const pkg=JSON.parse(fs.readFileSync(path.join(__dirname,'..','package.json'),'utf8'));
  assert.equal(pkg.scripts['start:web'],'node http/server.js');
- for(const token of ['http/*.js','http/routes/*.js','http/view-models/*.js','web/render/*.js','web/public/*.js'])assert.match(pkg.scripts.check,new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+ for(const token of ['http/*.js','http/routes/*.js','http/view-models/*.js','web/render/*.js','web/public/*.js','runtime/*.js','cloudflare/*.mjs'])assert.match(pkg.scripts.check,new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
 });

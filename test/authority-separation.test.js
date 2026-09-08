@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-test('active social trust and delegation never authorize a protected capability', () => {
+test('active social trust and delegation never authorize a protected capability', async () => {
   const { evaluateAuthority } = require('../authority/policy');
   const socialRelationships = [
     { relationship_type: 'trusts', lifecycle: 'active', source_entity_id: 'actor:A', target_entity_id: 'actor:B' },
@@ -25,7 +25,7 @@ test('active social trust and delegation never authorize a protected capability'
   assert.equal(receipt.decision, 'deny');
 });
 
-test('explicit authority-domain capability grant can authorize protected action', () => {
+test('explicit authority-domain capability grant can authorize protected action', async () => {
   const { evaluateAuthority } = require('../authority/policy');
   const receipt = evaluateAuthority({
     command_id: 'cmd:protected-allow',

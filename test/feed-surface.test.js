@@ -13,27 +13,27 @@ const { loadHomeFeedSurface } = require('../feed/read-service');
 const { renderFeedHtml } = require('../feed/render-html');
 const { renderFeedJson } = require('../feed/render-json');
 
-function reg(store,id){registerActor({command_id:`reg:${id}`,idempotency_key:`reg:${id}`,principal_id:`principal:${id}`,entity_id:id},{eventStore:store,authorize:evaluateAuthority});}
-function ctx(db,store,actor){return {db,eventStore:store,principalActorId:actor,capabilityGrants:[],evaluatedAt:'2026-09-03T03:30:00Z'};}
-function pub(db,store,id,author,visibility='public',body=`body:${id}`){
-  return createPublication({command_id:`pub:${id}`,idempotency_key:`pub:${id}`,principal_id:`principal:${author}`,publication_id:`pub:${id}`,author_actor_id:author,publication_type:'post',body,visibility},ctx(db,store,author)).publication_id;
+async function reg(store,id){(await registerActor({command_id:`reg:${id}`,idempotency_key:`reg:${id}`,principal_id:`principal:${id}`,entity_id:id},{eventStore:store,authorize:evaluateAuthority}));}
+function ctx(db,store,actor){return {db,sql:db,eventStore:store,principalActorId:actor,capabilityGrants:[],evaluatedAt:'2026-09-03T03:30:00Z'};}
+async function pub(db,store,id,author,visibility='public',body=`body:${id}`){
+  return (await createPublication({command_id:`pub:${id}`,idempotency_key:`pub:${id}`,principal_id:`principal:${author}`,publication_id:`pub:${id}`,author_actor_id:author,publication_type:'post',body,visibility},ctx(db,store,author))).publication_id;
 }
 
-test('Feed action hints are advisory navigation/product hints only',()=>{
+test('Feed action hints are advisory navigation/product hints only',async ()=>{
   const publicationItem={item_type:'publication',publication:{lifecycle:'active',available_actions:['reply','quote']}};
   assert.deepEqual(availableFeedActions(publicationItem),['open_publication','reply','quote']);
   assert.deepEqual(availableFeedActions({item_type:'social_activity',activity:{type:'community_joined'}}),['open_community']);
   assert.deepEqual(availableFeedActions({item_type:'social_activity',activity:{type:'collaboration_started'}}),['open_relationship']);
 });
 
-test('Home Feed HTML and JSON render the same filtered visible item and escape authored HTML',()=>{
+test('Home Feed HTML and JSON render the same filtered visible item and escape authored HTML',async ()=>{
   const db=createTestDatabase(); const store=new SQLiteEventStore(db,{now:()=> '2026-09-03T03:31:00Z'});
-  reg(store,'actor:A'); reg(store,'actor:B');
-  pub(db,store,'visible','actor:A','public','<script>alert(1)</script> visible');
-  pub(db,store,'hidden','actor:B','private','HIDDEN BODY');
-  rebuildPublicationProjection(db,store);
+  (await reg(store,'actor:A')); (await reg(store,'actor:B'));
+  (await pub(db,store,'visible','actor:A','public','<script>alert(1)</script> visible'));
+  (await pub(db,store,'hidden','actor:B','private','HIDDEN BODY'));
+  (await rebuildPublicationProjection(db,store));
   const before=db.prepare('SELECT COUNT(*) AS n FROM canonical_events').get().n;
-  const surface=loadHomeFeedSurface({subjectActorId:'actor:A',viewerContext:{viewer_actor_id:'actor:A'},db,eventStore:store,limit:20});
+  const surface=(await loadHomeFeedSurface({subjectActorId:'actor:A',viewerContext:{viewer_actor_id:'actor:A'},db,eventStore:store,limit:20}));
   const json=renderFeedJson(surface);
   const html=renderFeedHtml(surface);
   assert.match(json,/pub:visible/);
@@ -49,14 +49,14 @@ test('Home Feed HTML and JSON render the same filtered visible item and escape a
   assert.equal(surface.items[0].execution_authority.implied_by_feed_read,false);
 });
 
-test('Feed renderers are pure presentation modules with no storage imports',()=>{
+test('Feed renderers are pure presentation modules with no storage imports',async ()=>{
   for(const file of ['render-html.js','render-json.js']){
     const source=fs.readFileSync(path.join(__dirname,'..','feed',file),'utf8');
     assert.equal(/event-store|sqlite|\.\.\/db\//.test(source),false,file);
   }
 });
 
-test('Feed public API exposes no canonical mutation shortcut',()=>{
+test('Feed public API exposes no canonical mutation shortcut',async ()=>{
   const service=require('../feed/read-service');
   for(const name of ['appendFeedEvent','createCanonicalFeedItem','markSeenCanonical','mutatePublication','mutateRelationship','autoFollowFromDiscovery']){
     assert.equal(service[name],undefined,name);

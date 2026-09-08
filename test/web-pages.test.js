@@ -11,7 +11,7 @@ const {renderCommunityPage}=require('../web/render/community');
 async function call(path,services){return dispatchRequest({url:path,method:'GET',headers:{}},{routeHandlers:[createPublicRoutes(),createResourceRoutes()],services});}
 
 test('five public human surfaces render one semantic responsive shell',async()=>{
-  const {db,store}=setupWebSystem(); const services=createPublicServiceFacade({db,eventStore:store});
+  const {sql,store}=(await setupWebSystem()); const services=createPublicServiceFacade({sql,eventStore:store});
   for(const path of ['/','/discover','/actors/actor%3AA','/publications/pub%3Ap1','/communities/community%3AC']){
     const response=await call(path,services);
     assert.equal(response.status,200,path);
@@ -22,13 +22,13 @@ test('five public human surfaces render one semantic responsive shell',async()=>
 });
 
 test('authored publication content is escaped instead of executed',async()=>{
-  const {db,store}=setupWebSystem(); const services=createPublicServiceFacade({db,eventStore:store});
+  const {sql,store}=(await setupWebSystem()); const services=createPublicServiceFacade({sql,eventStore:store});
   const response=await call('/publications/pub%3Ap1',services);
   assert.doesNotMatch(response.body,/<script>alert\(1\)<\/script>/);
   assert.match(response.body,/&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
 });
 
-test('community graph visual and text fallback represent the same visible edge ids',()=>{
+test('community graph visual and text fallback represent the same visible edge ids',async ()=>{
   const surface={community_id:'community:C',presentation:{name:{value:'Commons'}},discoverability:'public',membership:{visible_members:[],visible_member_count:0},local_graph:{visible_scoped_relationships:[
     {relationship_id:'rel:1',relationship_type:'collaborates_with',source_entity_id:'actor:A',target_entity_id:'actor:B'},
     {relationship_id:'rel:2',relationship_type:'trusts',source_entity_id:'actor:B',target_entity_id:'actor:C'}
@@ -40,7 +40,7 @@ test('community graph visual and text fallback represent the same visible edge i
   }
 });
 
-test('web CSS has design tokens, focus treatment, reduced-motion and mobile layout',()=>{
+test('web CSS has design tokens, focus treatment, reduced-motion and mobile layout',async ()=>{
   const css=fs.readFileSync(require.resolve('../web/public/app.css'),'utf8');
   assert.match(css,/--color-bg:/); assert.match(css,/:focus-visible/); assert.match(css,/prefers-reduced-motion/); assert.match(css,/@media/);
 });

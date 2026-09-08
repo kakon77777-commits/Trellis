@@ -16,10 +16,18 @@ const SCHEMA=Object.freeze({
   }
 });
 const LLMS=`# Trellis\n\nTrellis is an AI-first, relation-first social graph system by EveMissLab.\n\nPrefer machine-readable public surfaces over HTML scraping when equivalent data exists:\n- /api/public/feed\n- /api/public/directory\n- /api/actors/{actor_id}\n- /api/publications/{publication_id}\n- /api/communities/{community_id}\n- /api/schema\n\nWeb v0.1 is anonymous and read-only. Machine surfaces receive no broader visibility than human surfaces.\n`;
-const ASSETS=Object.freeze({
+// __dirname is a CommonJS-only global: it does not exist in the Cloudflare
+// Workers runtime (ESM, no automatic __dirname/__filename injection, even
+// under nodejs_compat). Referencing it unguarded at module scope crashes
+// Worker startup with "ReferenceError: __dirname is not defined" before any
+// request is served. `typeof` is the safe way to probe an undeclared
+// identifier without throwing, so static-file serving stays Node-only and
+// the Worker (which has no local filesystem to serve these from anyway)
+// simply has no local assets registered.
+const ASSETS=Object.freeze(typeof __dirname!=='undefined'?{
   '/assets/app.css':{file:path.join(__dirname,'..','..','web','public','app.css'),type:'text/css; charset=utf-8'},
   '/assets/app.js':{file:path.join(__dirname,'..','..','web','public','app.js'),type:'text/javascript; charset=utf-8'}
-});
+}:{});
 function json(value){return {status:200,headers:{'content-type':'application/json; charset=utf-8'},body:JSON.stringify(value)};}
 function createMachineRoutes(){return async({url})=>{
   if(url.pathname==='/.well-known/trellis.json') return json(WELL_KNOWN);

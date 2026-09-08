@@ -21,10 +21,10 @@ function contextFor(eventStore, principalActorId, credentialRefs = []) {
   };
 }
 
-function buildHistoryFixture({ visibility = 'participants' } = {}) {
+async function buildHistoryFixture({ visibility = 'participants' } = {}) {
   const db = createTestDatabase();
   const store = new SQLiteEventStore(db, { now: () => '2026-09-02T08:59:00.000Z' });
-  const proposed = proposeRelationship({
+  const proposed = (await proposeRelationship({
     command_id: `cmd:hist:propose:${visibility}`,
     idempotency_key: `idem:hist:propose:${visibility}`,
     principal_id: 'principal:A',
@@ -33,53 +33,53 @@ function buildHistoryFixture({ visibility = 'participants' } = {}) {
     relationship_type: 'collaborates_with',
     visibility,
     occurred_at: '2026-09-02T08:10:00.000Z'
-  }, contextFor(store, 'actor:A', ['credential:secret-A']));
+  }, contextFor(store, 'actor:A', ['credential:secret-A'])));
   const id = proposed.relationship_id;
-  activateRelationship({
+  (await activateRelationship({
     command_id: `cmd:hist:activate:${visibility}`,
     idempotency_key: `idem:hist:activate:${visibility}`,
     principal_id: 'principal:B', relationship_id: id, expected_version: 1,
     occurred_at: '2026-09-02T08:11:00.000Z'
-  }, contextFor(store, 'actor:B', ['credential:secret-B']));
-  addEvidence({
+  }, contextFor(store, 'actor:B', ['credential:secret-B'])));
+  (await addEvidence({
     command_id: `cmd:hist:evidence:${visibility}`,
     idempotency_key: `idem:hist:evidence:${visibility}`,
     principal_id: 'principal:A', relationship_id: id, expected_version: 2,
     evidence_ref: 'artifact:X', occurred_at: '2026-09-02T08:12:00.000Z'
-  }, contextFor(store, 'actor:A'));
-  openContestation({
+  }, contextFor(store, 'actor:A')));
+  (await openContestation({
     command_id: `cmd:hist:contest-open:${visibility}`,
     idempotency_key: `idem:hist:contest-open:${visibility}`,
     principal_id: 'principal:B', relationship_id: id, expected_version: 3,
     contestation_id: 'contest:C1', claim: 'scope disputed', evidence_refs: ['artifact:Y'],
     occurred_at: '2026-09-02T08:13:00.000Z'
-  }, contextFor(store, 'actor:B'));
-  resolveContestation({
+  }, contextFor(store, 'actor:B')));
+  (await resolveContestation({
     command_id: `cmd:hist:contest-resolve:${visibility}`,
     idempotency_key: `idem:hist:contest-resolve:${visibility}`,
     principal_id: 'principal:A', relationship_id: id, expected_version: 4,
     contestation_id: 'contest:C1', resolution: 'dismissed', evidence_refs: ['artifact:Z'],
     occurred_at: '2026-09-02T08:14:00.000Z'
-  }, contextFor(store, 'actor:A'));
-  addAnnotation({
+  }, contextFor(store, 'actor:A')));
+  (await addAnnotation({
     command_id: `cmd:hist:annotation:${visibility}`,
     idempotency_key: `idem:hist:annotation:${visibility}`,
     principal_id: 'principal:B', relationship_id: id, expected_version: 5,
     note: 'historical note', occurred_at: '2026-09-02T08:15:00.000Z'
-  }, contextFor(store, 'actor:B'));
-  rebuildRelationshipProjection(db, store);
+  }, contextFor(store, 'actor:B')));
+  (await rebuildRelationshipProjection(db, store));
   return { db, store, relationshipId: id };
 }
 
-test('visible detail safely projects evidence contestation annotation and authority summaries', () => {
+test('visible detail safely projects evidence contestation annotation and authority summaries', async () => {
   const { loadRelationshipDetail } = require('../relationship-surface/read-service');
-  const fx = buildHistoryFixture();
-  const detail = loadRelationshipDetail({
+  const fx = (await buildHistoryFixture());
+  const detail = (await loadRelationshipDetail({
     relationshipId: fx.relationshipId,
     viewerContext: { viewer_actor_id: 'actor:A' },
     eventStore: fx.store,
     db: fx.db
-  });
+  }));
 
   assert.equal(detail.history.length, 6);
   assert.deepEqual(detail.evidence.map(x => x.evidence_ref), ['artifact:X']);
@@ -104,22 +104,22 @@ test('visible detail safely projects evidence contestation annotation and author
   assert.equal(serialized.includes('receipt_json'), false);
 });
 
-test('contestation history is orthogonal to relationship lifecycle', () => {
+test('contestation history is orthogonal to relationship lifecycle', async () => {
   const { loadRelationshipDetail } = require('../relationship-surface/read-service');
-  const fx = buildHistoryFixture();
-  const detail = loadRelationshipDetail({
+  const fx = (await buildHistoryFixture());
+  const detail = (await loadRelationshipDetail({
     relationshipId: fx.relationshipId,
     viewerContext: { viewer_actor_id: 'actor:B' },
     eventStore: fx.store,
     db: fx.db
-  });
+  }));
   assert.equal(detail.lifecycle, 'active');
   assert.equal(detail.contestations[0].status, 'resolved');
 });
 
-test('unreadable relationship short-circuits before canonical stream read', () => {
+test('unreadable relationship short-circuits before canonical stream read', async () => {
   const { loadRelationshipDetail } = require('../relationship-surface/read-service');
-  const fx = buildHistoryFixture();
+  const fx = (await buildHistoryFixture());
   let reads = 0;
   const countingStore = {
     readStream(...args) {
@@ -127,12 +127,12 @@ test('unreadable relationship short-circuits before canonical stream read', () =
       return fx.store.readStream(...args);
     }
   };
-  const detail = loadRelationshipDetail({
+  const detail = (await loadRelationshipDetail({
     relationshipId: fx.relationshipId,
     viewerContext: { viewer_actor_id: 'actor:C' },
     eventStore: countingStore,
     db: fx.db
-  });
+  }));
   assert.equal(detail, null);
   assert.equal(reads, 0);
 });

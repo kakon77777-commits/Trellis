@@ -1,17 +1,14 @@
-const fs = require('node:fs');
-const path = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
+const { loadMigrations } = require('../storage/migration-loader');
 
 function openDatabase(filename = ':memory:') {
-  const db = new DatabaseSync(filename);
-  const migrationDir = path.join(__dirname, 'migrations');
-  const migrations = fs.readdirSync(migrationDir)
-    .filter(name => /^\d+_.*\.sql$/.test(name))
-    .sort();
-  for (const name of migrations) {
-    db.exec(fs.readFileSync(path.join(migrationDir, name), 'utf8'));
-  }
+  return new DatabaseSync(filename);
+}
+
+function openMigratedDatabase(filename = ':memory:') {
+  const db = openDatabase(filename);
+  for (const migration of loadMigrations()) db.exec(migration.sql);
   return db;
 }
 
-module.exports = { openDatabase };
+module.exports = { openDatabase, openMigratedDatabase };

@@ -10,24 +10,24 @@ const {
 } = require('./snapshot');
 const { applyOwnerFeedPreferences } = require('../preference/feed-policy');
 
-function collectCommunityPublicationItems({
+async function collectCommunityPublicationItems({
   communityId,
   viewerContext = {},
   db,
   eventStore,
   disclosurePolicy
 }) {
-  const rows = db.prepare(`
+  const rows = await db.all(`
     SELECT publication_id
     FROM publications_current
     WHERE scope_ref = ?
       AND lifecycle = 'active'
       AND reply_to_ref IS NULL
     ORDER BY publication_id
-  `).all(communityId);
+  `,[communityId]);
   const items = [];
   for (const row of rows) {
-    const surface = loadPublicationSurface({
+    const surface = await loadPublicationSurface({
       publicationId: row.publication_id,
       viewerContext,
       db,
@@ -36,21 +36,21 @@ function collectCommunityPublicationItems({
       includeReactionDecoration: false
     });
     if (!surface || surface.lifecycle !== 'active') continue;
-    const creationEvent = loadCreationEvent(db, row.publication_id);
+    const creationEvent = await loadCreationEvent(db, row.publication_id);
     const item = publicationFeedItem({ publicationSurface: surface, creationEvent });
     if (item) items.push(item);
   }
   return items;
 }
 
-function buildCommunityFeed({
+async function buildCommunityFeed({
   communityId,
   viewerContext = {},
   db,
   eventStore,
   disclosurePolicy
 }) {
-  const communitySurface = buildCommunitySurface({
+  const communitySurface = await buildCommunitySurface({
     communityId,
     viewerContext,
     db,
@@ -59,14 +59,14 @@ function buildCommunityFeed({
   });
   if (!communitySurface) return null;
 
-  const publicationItems = collectCommunityPublicationItems({
+  const publicationItems = await collectCommunityPublicationItems({
     communityId,
     viewerContext,
     db,
     eventStore,
     disclosurePolicy
   });
-  const activityItems = collectCommunityActivityItems({
+  const activityItems = await collectCommunityActivityItems({
     communityId,
     viewerContext,
     db,
@@ -76,7 +76,7 @@ function buildCommunityFeed({
   const visibleItems = [...publicationItems, ...activityItems];
   const ownerActorId = viewerContext.viewer_actor_id ?? null;
   const preferredItems = ownerActorId
-    ? applyOwnerFeedPreferences({ ownerActorId, viewerContext, items: visibleItems, db })
+    ? await applyOwnerFeedPreferences({ ownerActorId, viewerContext, items: visibleItems, db })
     : visibleItems;
   const items = sortFeedItems(preferredItems);
   const snapshotRef = computeCommunityFeedSnapshotRef({

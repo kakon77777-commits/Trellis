@@ -1,6 +1,6 @@
-function loadAuthorityReceipt(db, ref) {
+async function loadAuthorityReceiptAsync(sql, ref) {
   if (!ref) return null;
-  const row = db.prepare('SELECT receipt_json FROM authority_receipts WHERE decision_id = ?').get(ref);
+  const row = await sql.first('SELECT receipt_json FROM authority_receipts WHERE decision_id = ?', [ref]);
   return row ? JSON.parse(row.receipt_json) : null;
 }
 
@@ -12,4 +12,4 @@ function classifyAssertionProvenance(event, authorityReceipt) {
   return 'authority_attested';
 }
 
-module.exports = { loadAuthorityReceipt, classifyAssertionProvenance };
+module.exports = { loadAuthorityReceiptAsync, classifyAssertionProvenance };

@@ -1,7 +1,7 @@
 const { registerEntity } = require('../entity/service');
 
-function createCommunity(command, context) {
-  const result = registerEntity({
+async function createCommunity(command, context) {
+  const result = await registerEntity({
     ...command,
     entity_id: command.community_id ?? command.entity_id,
     entity_kind: 'community',

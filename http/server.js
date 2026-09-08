@@ -1,16 +1,18 @@
 const http=require('node:http');
 const path=require('node:path');
 const {openDatabase}=require('../db/sqlite');
-const {SQLiteEventStore}=require('../events/sqlite-event-store');
+const {SQLiteAsyncAdapter}=require('../storage/sqlite-adapter');
 const {createHttpApp}=require('./app');
-const {createPublicServiceFacade}=require('./view-models/public');
-const {createMachineRoutes}=require('./routes/machine');
-const {createPublicRoutes}=require('./routes/public');
-const {createResourceRoutes}=require('./routes/resources');
+const {buildHttpRuntime}=require('../runtime/build-dependencies');
 
-function createTrellisHandler({db,eventStore,disclosurePolicy}){
-  const services=createPublicServiceFacade({db,eventStore,disclosurePolicy});
-  return createHttpApp({routeHandlers:[createMachineRoutes(),createPublicRoutes(),createResourceRoutes()],services});
+function createNodeDependencies({db,eventStore,disclosurePolicy}={}){
+  if(!db) throw new TypeError('SQLITE_DATABASE_REQUIRED');
+  const sql=new SQLiteAsyncAdapter(db);
+  return buildHttpRuntime({sql,eventStore,disclosurePolicy});
+}
+function createTrellisHandler({sql,eventStore,disclosurePolicy}={}){
+  const runtime=buildHttpRuntime({sql,eventStore,disclosurePolicy});
+  return createHttpApp({routeHandlers:runtime.routeHandlers,services:runtime.services});
 }
 function createTrellisServer(dependencies){return http.createServer(createTrellisHandler(dependencies));}
 function startDefaultServer(){
@@ -19,8 +21,8 @@ function startDefaultServer(){
   const port=Number(process.env.PORT??8787);
   if(!Number.isInteger(port)||port<0||port>65535) throw new TypeError('INVALID_WEB_PORT');
   const db=openDatabase(filename);
-  const eventStore=new SQLiteEventStore(db);
-  const server=createTrellisServer({db,eventStore});
+  const runtime=createNodeDependencies({db});
+  const server=createTrellisServer(runtime);
   server.listen(port,host,()=>{
     const address=server.address();
     const bound=typeof address==='object'&&address?address.port:port;
@@ -29,4 +31,4 @@ function startDefaultServer(){
   return server;
 }
 if(require.main===module) startDefaultServer();
-module.exports={createTrellisHandler,createTrellisServer,startDefaultServer};
+module.exports={createNodeDependencies,createTrellisHandler,createTrellisServer,startDefaultServer};

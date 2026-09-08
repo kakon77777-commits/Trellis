@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createTestDatabase } = require('./helpers/test-db');
 
-test('AI Board event becomes inert candidate without canonical mutation', () => {
+test('AI Board event becomes inert candidate without canonical mutation', async () => {
   const { fromAiBoardEvent } = require('../bridge/ai-board-candidate');
   const db = createTestDatabase();
   const before = db.prepare('SELECT COUNT(*) AS n FROM canonical_events').get().n;
@@ -29,7 +29,7 @@ test('AI Board event becomes inert candidate without canonical mutation', () => 
   assert.equal(candidate.commit, undefined);
 });
 
-test('LLM confidence never promotes an AI Board candidate by itself', () => {
+test('LLM confidence never promotes an AI Board candidate by itself', async () => {
   const { fromAiBoardEvent } = require('../bridge/ai-board-candidate');
   const candidate = fromAiBoardEvent({
     event_id: 'aiboard:message:2',
@@ -43,7 +43,7 @@ test('LLM confidence never promotes an AI Board candidate by itself', () => {
   assert.equal(candidate.promotion_status, 'unpromoted');
 });
 
-test('unsupported AI Board event can return null rather than inventing semantics', () => {
+test('unsupported AI Board event can return null rather than inventing semantics', async () => {
   const { fromAiBoardEvent } = require('../bridge/ai-board-candidate');
   assert.equal(fromAiBoardEvent({ event_type: 'unknown' }), null);
 });

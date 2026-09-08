@@ -34,7 +34,7 @@ function append(store, { reactionId, seq, commandId, actorId, eventType, payload
 }
 function snapshot(db) { return db.prepare('SELECT * FROM reactions_current ORDER BY reaction_id').all(); }
 
-test('Reaction projection can be destroyed and rebuilt exactly from canonical history', () => {
+test('Reaction projection can be destroyed and rebuilt exactly from canonical history', async () => {
   const db = createTestDatabase();
   const store = new SQLiteEventStore(db, { now: () => '2026-09-03T01:00:01Z' });
   const rid = deriveReactionId('actor:B', 'pub:P');
@@ -48,8 +48,8 @@ test('Reaction projection can be destroyed and rebuilt exactly from canonical hi
   append(store, {reactionId:rid,seq:3,commandId:'cmd:r3',actorId:'actor:B',eventType:'reaction.withdrawn',payload:{reason:'actor_withdrawn'}});
   append(store, {reactionId:rid,seq:4,commandId:'cmd:r4',actorId:'actor:B',eventType:'reaction.restored',payload:{reaction_type:'insightful'}});
 
-  projectReactionStream(db, store, rid);
-  const before = snapshot(db);
+  (await projectReactionStream(db, store, rid));
+  const before = (await snapshot(db));
   assert.equal(before.length, 1);
   assert.equal(before[0].reaction_id, rid);
   assert.equal(before[0].actor_id, 'actor:B');
@@ -59,7 +59,7 @@ test('Reaction projection can be destroyed and rebuilt exactly from canonical hi
   assert.equal(before[0].stream_version, 4);
 
   db.exec('DELETE FROM reactions_current');
-  assert.deepEqual(snapshot(db), []);
-  rebuildReactionProjection(db, store);
-  assert.deepEqual(snapshot(db), before);
+  assert.deepEqual((await snapshot(db)), []);
+  (await rebuildReactionProjection(db, store));
+  assert.deepEqual((await snapshot(db)), before);
 });

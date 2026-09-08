@@ -11,7 +11,7 @@ function surface(overrides={}) {
   };
 }
 
-test('active author sees revise withdraw reply quote; readable viewer sees reply quote only', () => {
+test('active author sees revise withdraw reply quote; readable viewer sees reply quote only', async () => {
   const { availablePublicationActions } = require('../publication/action-hints');
   const p=surface();
   assert.deepEqual(availablePublicationActions({publication:p,viewerContext:{viewer_actor_id:'actor:A'}}),['reply','quote','revise','withdraw']);
@@ -19,13 +19,13 @@ test('active author sees revise withdraw reply quote; readable viewer sees reply
   assert.deepEqual(availablePublicationActions({publication:p,viewerContext:{}}),[]);
 });
 
-test('withdrawn publication offers no new reply quote revise or withdraw actions', () => {
+test('withdrawn publication offers no new reply quote revise or withdraw actions', async () => {
   const { availablePublicationActions } = require('../publication/action-hints');
   assert.deepEqual(availablePublicationActions({publication:surface({lifecycle:'withdrawn',content:null}),viewerContext:{viewer_actor_id:'actor:A'}}),[]);
   assert.deepEqual(availablePublicationActions({publication:surface({lifecycle:'withdrawn',content:null}),viewerContext:{viewer_actor_id:'actor:B'}}),[]);
 });
 
-test('JSON and HTML render the same filtered facts and HTML escapes content', () => {
+test('JSON and HTML render the same filtered facts and HTML escapes content', async () => {
   const { renderPublicationJson } = require('../publication/render-json');
   const { renderPublicationHtml } = require('../publication/render-html');
   const s=surface({available_actions:['reply','quote']});
@@ -38,7 +38,7 @@ test('JSON and HTML render the same filtered facts and HTML escapes content', ()
   assert.ok(html.includes('reply'));
 });
 
-test('renderers contain no storage or EventStore dependency', () => {
+test('renderers contain no storage or EventStore dependency', async () => {
   for(const file of ['render-html.js','render-json.js']) {
     const source=fs.readFileSync(path.join(__dirname,'..','publication',file),'utf8');
     assert.equal(source.includes('sqlite'),false);

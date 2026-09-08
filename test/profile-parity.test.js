@@ -20,41 +20,41 @@ function context(eventStore, actorId) {
   };
 }
 
-function setup() {
+async function setup() {
   const db = createTestDatabase();
   const eventStore = new SQLiteEventStore(db, { now: () => '2026-09-02T10:00:01.000Z' });
   for (const actorId of ['actor:A', 'actor:B', 'actor:C']) {
-    registerActor({
+    (await registerActor({
       command_id: `reg-${actorId}`, idempotency_key: `reg-${actorId}`,
       principal_id: `principal:${actorId}`, entity_id: actorId
-    }, { eventStore, authorize: evaluateAuthority });
+    }, { eventStore, authorize: evaluateAuthority }));
   }
-  setDisplayName({
+  (await setDisplayName({
     command_id: 'name-a', idempotency_key: 'name-a', principal_id: 'principal:actor:A', actor_id: 'actor:A',
     value: '<Aletheia & Co>', visibility: 'public'
-  }, context(eventStore, 'actor:A'));
-  setBio({
+  }, context(eventStore, 'actor:A')));
+  (await setBio({
     command_id: 'bio-a', idempotency_key: 'bio-a', principal_id: 'principal:actor:A', actor_id: 'actor:A',
     value: 'PRIVATE-BIO-SENTINEL', visibility: 'private'
-  }, context(eventStore, 'actor:A'));
-  proposeRelationship({
+  }, context(eventStore, 'actor:A')));
+  (await proposeRelationship({
     command_id: 'follow-ab', idempotency_key: 'follow-ab', principal_id: 'principal:actor:A',
     source_entity_id: 'actor:A', target_entity_id: 'actor:B', relationship_type: 'follows', visibility: 'public'
-  }, context(eventStore, 'actor:A'));
-  proposeRelationship({
+  }, context(eventStore, 'actor:A')));
+  (await proposeRelationship({
     command_id: 'follow-ac', idempotency_key: 'follow-ac', principal_id: 'principal:actor:A',
     source_entity_id: 'actor:A', target_entity_id: 'actor:C', relationship_type: 'follows', visibility: 'private'
-  }, context(eventStore, 'actor:A'));
-  rebuildRelationshipProjection(db, eventStore);
+  }, context(eventStore, 'actor:A')));
+  (await rebuildRelationshipProjection(db, eventStore));
   return { db, eventStore };
 }
 
-test('HTML and JSON render the same already-filtered public facts without hidden data', () => {
-  const env = setup();
-  const profile = buildActorProfile({
+test('HTML and JSON render the same already-filtered public facts without hidden data', async () => {
+  const env = (await setup());
+  const profile = (await buildActorProfile({
     actorId: 'actor:A', viewerContext: { viewer_actor_id: null, represents_actor_ids: [] },
     eventStore: env.eventStore, db: env.db
-  });
+  }));
 
   const json = serializeProfileJson(profile);
   const html = renderProfileHtml(profile);

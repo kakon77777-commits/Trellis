@@ -1,7 +1,7 @@
 const { loadPublicationSurface } = require('../publication/read-service');
 
-function loadCreationEvent(db, publicationId) {
-  return db.prepare(`
+async function loadCreationEvent(db, publicationId) {
+  return await db.first(`
     SELECT event_id, recorded_at, global_offset
     FROM canonical_events
     WHERE stream_type='publication'
@@ -9,7 +9,7 @@ function loadCreationEvent(db, publicationId) {
       AND event_type='publication.created'
     ORDER BY stream_seq ASC
     LIMIT 1
-  `).get(publicationId) ?? null;
+  `,[publicationId]);
 }
 
 function publicationFeedItem({ publicationSurface, creationEvent }) {
@@ -34,23 +34,23 @@ function publicationCandidateAllowed(row, sourceGraph) {
   return sourceGraph.community_source_ids.includes(row.scope_ref);
 }
 
-function collectHomePublicationItems({
+async function collectHomePublicationItems({
   sourceGraph,
   viewerContext = {},
   db,
   eventStore,
   disclosurePolicy
 }) {
-  const rows = db.prepare(`
+  const rows = await db.all(`
     SELECT * FROM publications_current
     WHERE lifecycle='active'
       AND reply_to_ref IS NULL
     ORDER BY publication_id
-  `).all();
+  `);
   const items = [];
   for (const row of rows) {
     if (!publicationCandidateAllowed(row, sourceGraph)) continue;
-    const surface = loadPublicationSurface({
+    const surface = await loadPublicationSurface({
       publicationId: row.publication_id,
       viewerContext,
       db,
@@ -59,7 +59,7 @@ function collectHomePublicationItems({
       includeReactionDecoration: false
     });
     if (!surface || surface.lifecycle !== 'active') continue;
-    const creationEvent = loadCreationEvent(db, row.publication_id);
+    const creationEvent = await loadCreationEvent(db, row.publication_id);
     const item = publicationFeedItem({ publicationSurface: surface, creationEvent });
     if (item) items.push(item);
   }

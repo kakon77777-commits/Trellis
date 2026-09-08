@@ -36,11 +36,11 @@ function assertReasonsVisible(snapshot,actorCandidates,communityCandidates){
   }
 }
 
-test('D1-D12 vertical slice is derived deterministic explainable and authority-separated',()=>{
-  const {db,store}=setupDiscoverySystem();
+test('D1-D12 vertical slice is derived deterministic explainable and authority-separated',async ()=>{
+  const {db,store}=(await setupDiscoverySystem());
   const eventCountBefore=canonicalEventCount(db);
   const viewer={viewer_actor_id:'actor:A'};
-  const before=buildDiscoverySurface({subjectActorId:'actor:A',viewerContext:viewer,db,eventStore:store});
+  const before=(await buildDiscoverySurface({subjectActorId:'actor:A',viewerContext:viewer,db,eventStore:store}));
   const eventCountAfter=canonicalEventCount(db);
 
   assert.equal(eventCountAfter,eventCountBefore,'Discovery read mutated canonical history');
@@ -50,47 +50,47 @@ test('D1-D12 vertical slice is derived deterministic explainable and authority-s
   assert.equal(JSON.stringify(before).includes('community:Cprivate'),false);
   assert.equal(before.execution_authority.implied_by_discovery_read,false);
 
-  const snapshot=buildDiscoverySnapshot({subjectActorId:'actor:A',viewerContext:viewer,db,eventStore:store});
+  const snapshot=(await buildDiscoverySnapshot({subjectActorId:'actor:A',viewerContext:viewer,db,eventStore:store}));
   assertReasonsVisible(snapshot,discoverActors(snapshot),discoverCommunities(snapshot));
 
-  const representative=buildDiscoverySurface({subjectActorId:'actor:A',viewerContext:{viewer_actor_id:'actor:R',represents_actor_ids:['actor:A']},db,eventStore:store});
+  const representative=(await buildDiscoverySurface({subjectActorId:'actor:A',viewerContext:{viewer_actor_id:'actor:R',represents_actor_ids:['actor:A']},db,eventStore:store}));
   assert.equal(representative.subject_actor_id,'actor:A');
   assert.equal(representative.viewer_scope,'representative');
   assert.deepEqual(representative.actor_discovery.candidates.map(x=>x.actor_id),['actor:B']);
 });
 
-test('hidden Trellis facts have zero Discovery influence including snapshot ref',()=>{
-  const {db,store}=setupDiscoverySystem();
+test('hidden Trellis facts have zero Discovery influence including snapshot ref',async ()=>{
+  const {db,store}=(await setupDiscoverySystem());
   const viewer={viewer_actor_id:'actor:A'};
-  const before=buildDiscoverySurface({subjectActorId:'actor:A',viewerContext:viewer,db,eventStore:store});
+  const before=(await buildDiscoverySurface({subjectActorId:'actor:A',viewerContext:viewer,db,eventStore:store}));
 
-  follow(store,'actor:B','actor:Y','hidden-by','participants');
-  createCommunityWithMetadata(store,'community:Chidden','private','Hidden Community');
-  join(store,'actor:Y','community:Chidden','y-hidden-community');
-  rebuildRelationshipProjection(db,store);
+  (await follow(store,'actor:B','actor:Y','hidden-by','participants'));
+  (await createCommunityWithMetadata(store,'community:Chidden','private','Hidden Community'));
+  (await join(store,'actor:Y','community:Chidden','y-hidden-community'));
+  (await rebuildRelationshipProjection(db,store));
 
-  const after=buildDiscoverySurface({subjectActorId:'actor:A',viewerContext:viewer,db,eventStore:store});
+  const after=(await buildDiscoverySurface({subjectActorId:'actor:A',viewerContext:viewer,db,eventStore:store}));
   assert.deepEqual(after,before);
 });
 
-test('Discovery recomputes identically after disposable projection destruction and rebuild',()=>{
-  const {db,store}=setupDiscoverySystem();
+test('Discovery recomputes identically after disposable projection destruction and rebuild',async ()=>{
+  const {db,store}=(await setupDiscoverySystem());
   const args={subjectActorId:'actor:A',viewerContext:{viewer_actor_id:'actor:A'},db,eventStore:store};
-  const before=buildDiscoverySurface(args);
+  const before=(await buildDiscoverySurface(args));
 
   db.exec('DELETE FROM relationships_current; DELETE FROM actor_profile_assertions_current; DELETE FROM actor_profile_current;');
-  rebuildRelationshipProjection(db,store);
-  rebuildActorProfileProjection(db,store);
+  (await rebuildRelationshipProjection(db,store));
+  (await rebuildActorProfileProjection(db,store));
 
-  const after=buildDiscoverySurface(args);
-  const again=buildDiscoverySurface(args);
+  const after=(await buildDiscoverySurface(args));
+  const again=(await buildDiscoverySurface(args));
   assert.deepEqual(after,before);
   assert.deepEqual(again,after);
 });
 
-test('runtime or model metadata is not an Actor affinity scoring input',()=>{
-  const {db,store}=setupDiscoverySystem();
-  const snapshot=buildDiscoverySnapshot({subjectActorId:'actor:A',viewerContext:{viewer_actor_id:'actor:A'},db,eventStore:store});
+test('runtime or model metadata is not an Actor affinity scoring input',async ()=>{
+  const {db,store}=(await setupDiscoverySystem());
+  const snapshot=(await buildDiscoverySnapshot({subjectActorId:'actor:A',viewerContext:{viewer_actor_id:'actor:A'},db,eventStore:store}));
   const before=discoverActors(snapshot).map(x=>({actor_id:x.actor_id,score:x.score,reasons:x.reasons}));
   const modified=structuredClone(snapshot);
   modified.actors['actor:B'].profile.runtime_bindings=[{runtime_id:'runtime:other',model:'different-model',provider:'different-provider'}];
@@ -98,7 +98,7 @@ test('runtime or model metadata is not an Actor affinity scoring input',()=>{
   assert.deepEqual(after,before);
 });
 
-test('Discovery production modules expose no canonical social mutation shortcut',()=>{
+test('Discovery production modules expose no canonical social mutation shortcut',async ()=>{
   const discoveryDir=path.join(__dirname,'..','discovery');
   const files=fs.readdirSync(discoveryDir).filter(file=>file.endsWith('.js'));
   const exported=new Set();
@@ -115,6 +115,6 @@ test('Discovery production modules expose no canonical social mutation shortcut'
   assert.doesNotMatch(source,/require\(['"]\.\.\/community\/membership['"]\)/);
 });
 
-test('syntax release gate includes every Discovery module',()=>{
+test('syntax release gate includes every Discovery module',async ()=>{
   assert.match(packageJson.scripts.check,/discovery\/\*\.js/);
 });

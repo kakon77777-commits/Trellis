@@ -41,17 +41,17 @@ function authorityOrThrow(authorize, request) {
   return receipt;
 }
 
-function addEntityAssertion(command, context) {
+async function addEntityAssertion(command, context) {
   validateCommandEnvelope(command);
   const commandDigest = digestCommand(command);
   const assertionId = command.assertion_id ?? deriveId('assert', command.command_id);
-  const prior = context.eventStore.lookupIdempotency(command.idempotency_key);
+  const prior = await context.eventStore.lookupIdempotency(command.idempotency_key);
   if (prior) {
     if (prior.command_digest !== commandDigest) throw new IdempotencyConflictError();
     return { assertion_id: assertionId, receipt: { ...prior, deduplicated: true } };
   }
 
-  const history = context.eventStore.readStream('entity', command.actor_id);
+  const history = await context.eventStore.readStream('entity', command.actor_id);
   const entityState = foldEntity(history);
   if (entityState.lifecycle !== 'active' || entityState.entity_id !== command.actor_id) {
     throw new InvalidTransitionError('ENTITY_NOT_ACTIVE');
@@ -121,7 +121,7 @@ function addEntityAssertion(command, context) {
     evaluated_at: context.evaluatedAt ?? timestamp
   });
 
-  const receipt = context.eventStore.append({
+  const receipt = await context.eventStore.append({
     streamType: 'entity',
     streamId: command.actor_id,
     expectedVersion: entityState.stream_version,

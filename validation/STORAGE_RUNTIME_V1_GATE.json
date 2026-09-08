@@ -1,0 +1,178 @@
+{
+  "schema": "trellis-storage-runtime-v1-gate-v1",
+  "external_canonical_base": "kakon77777-commits/Trellis@9520076a64c4af1c0238c1cc537e7e889f56e26e",
+  "overall_status": "PASS",
+  "layers": {
+    "A": {
+      "status": "PASS",
+      "evidence": "sandbox full async SQLite suite"
+    },
+    "B": {
+      "sqlite": {
+        "status": "PASS",
+        "evidence": "test/storage-contract/sqlite.test.js"
+      },
+      "d1": {
+        "status": "PASS",
+        "evidence": "validation/STORAGE_RUNTIME_V1_LAYER_B_D1_LOCAL.json"
+      }
+    },
+    "C": {
+      "harness": {
+        "status": "PASS",
+        "evidence": "test/cloudflare/"
+      },
+      "d1_worker": {
+        "status": "PASS",
+        "evidence": "validation/STORAGE_RUNTIME_V1_LAYER_C_D1_LOCAL.json"
+      }
+    }
+  },
+  "invariants": [
+    {
+      "id": "SR1",
+      "status": "PASS",
+      "sandbox_evidence": [
+        "test/async-command-write.test.js",
+        "test/async-read-policy.test.js",
+        "test/async-derived-path.test.js"
+      ],
+      "external_evidence": null
+    },
+    {
+      "id": "SR2",
+      "status": "PASS",
+      "sandbox_evidence": [
+        "cloudflare/worker.mjs",
+        "wrangler.toml.template"
+      ],
+      "external_evidence": null
+    },
+    {
+      "id": "SR3",
+      "status": "PASS",
+      "sandbox_evidence": [
+        "storage/sqlite-adapter.js",
+        "test/storage-port.test.js"
+      ],
+      "external_evidence": null
+    },
+    {
+      "id": "SR4",
+      "status": "PASS",
+      "sandbox_evidence": [
+        "storage/migration-loader.js",
+        "db/migrations/",
+        "test/migration-source.test.js"
+      ],
+      "external_evidence": null
+    },
+    {
+      "id": "SR5",
+      "status": "PASS",
+      "sandbox_evidence": [
+        "events/async-sql-event-store.js",
+        "test/async-event-store-concurrency.test.js",
+        "test/storage-contract/contract-suite.js"
+      ],
+      "external_evidence": "validation/STORAGE_RUNTIME_V1_LAYER_B_D1_LOCAL.json"
+    },
+    {
+      "id": "SR6",
+      "status": "PASS",
+      "sandbox_evidence": [
+        "test/storage-contract/contract-suite.js"
+      ],
+      "external_evidence": "validation/STORAGE_RUNTIME_V1_LAYER_B_D1_LOCAL.json"
+    },
+    {
+      "id": "SR7",
+      "status": "PASS",
+      "sandbox_evidence": [
+        "test/storage-contract/contract-suite.js"
+      ],
+      "external_evidence": "validation/STORAGE_RUNTIME_V1_LAYER_B_D1_LOCAL.json"
+    },
+    {
+      "id": "SR8",
+      "status": "PASS",
+      "sandbox_evidence": [
+        "test/storage-contract/contract-suite.js"
+      ],
+      "external_evidence": "validation/STORAGE_RUNTIME_V1_LAYER_B_D1_LOCAL.json"
+    },
+    {
+      "id": "SR9",
+      "status": "PASS",
+      "sandbox_evidence": [
+        "test/storage-contract/contract-suite.js"
+      ],
+      "external_evidence": "validation/STORAGE_RUNTIME_V1_LAYER_B_D1_LOCAL.json"
+    },
+    {
+      "id": "SR10",
+      "status": "PASS",
+      "sandbox_evidence": [
+        "storage/results.js",
+        "test/storage-port.test.js",
+        "test/storage-contract/contract-suite.js"
+      ],
+      "external_evidence": "validation/STORAGE_RUNTIME_V1_LAYER_B_D1_LOCAL.json"
+    },
+    {
+      "id": "SR11",
+      "status": "PASS",
+      "sandbox_evidence": [
+        "db/sqlite.js",
+        "test/migration-source.test.js",
+        "cloudflare/worker.mjs"
+      ],
+      "external_evidence": null
+    },
+    {
+      "id": "SR12",
+      "status": "PASS",
+      "sandbox_evidence": [
+        "test/cloudflare-worker-composition.test.js",
+        "test/storage-runtime-v1-seal.test.js"
+      ],
+      "external_evidence": null
+    },
+    {
+      "id": "SR13",
+      "status": "PASS",
+      "sandbox_evidence": [
+        "test/storage-runtime-v1-seal.test.js",
+        "test/async-event-store-concurrency.test.js"
+      ],
+      "external_evidence": null
+    },
+    {
+      "id": "SR14",
+      "status": "PASS",
+      "sandbox_evidence": [
+        "docs/superpowers/specs/2026-09-07-trellis-storage-runtime-v1-d1-design.md",
+        "events/async-sql-event-store.js"
+      ],
+      "external_evidence": null
+    },
+    {
+      "id": "SR15",
+      "status": "PASS",
+      "sandbox_evidence": [
+        "test/storage-contract/contract-suite.js"
+      ],
+      "external_evidence": "validation/STORAGE_RUNTIME_V1_LAYER_B_D1_LOCAL.json"
+    },
+    {
+      "id": "SR16",
+      "status": "PASS",
+      "sandbox_evidence": [
+        "test/async-event-store.test.js",
+        "events/async-sql-event-store.js"
+      ],
+      "external_evidence": null
+    }
+  ],
+  "external_release_gates": []
+}

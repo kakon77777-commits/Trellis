@@ -24,7 +24,7 @@ function feed(snapshot = 'snap:A') {
   };
 }
 
-test('Feed cursor encodes only algorithm snapshot and last chronological key deterministically', () => {
+test('Feed cursor encodes only algorithm snapshot and last chronological key deterministically', async () => {
   const value = {
     algorithm_ref: 'trellis-feed:chronological:v1',
     snapshot_ref: 'snap:A',
@@ -41,7 +41,7 @@ test('Feed cursor encodes only algorithm snapshot and last chronological key det
   assert.equal(decodedText.includes('hidden'), false);
 });
 
-test('unchanged Feed snapshot paginates stably and yields stable cursor', () => {
+test('unchanged Feed snapshot paginates stably and yields stable cursor', async () => {
   const f = feed();
   const page1 = paginateFeed({ feed: f, limit: 2 });
   assert.deepEqual(page1.items.map(x => x.feed_item_id), ['feed:3', 'feed:2']);
@@ -52,7 +52,7 @@ test('unchanged Feed snapshot paginates stably and yields stable cursor', () => 
   assert.equal(page2.next_cursor, null);
 });
 
-test('visible snapshot change invalidates old Feed cursor', () => {
+test('visible snapshot change invalidates old Feed cursor', async () => {
   const page1 = paginateFeed({ feed: feed('snap:A'), limit: 1 });
   assert.throws(
     () => paginateFeed({ feed: feed('snap:B'), limit: 1, cursor: page1.next_cursor }),
@@ -60,7 +60,7 @@ test('visible snapshot change invalidates old Feed cursor', () => {
   );
 });
 
-test('hidden-only state not represented in Feed snapshot cannot invalidate cursor', () => {
+test('hidden-only state not represented in Feed snapshot cannot invalidate cursor', async () => {
   const before = feed('snap:A');
   const page1 = paginateFeed({ feed: before, limit: 1 });
   const after = { ...feed('snap:A'), internal_hidden_debug_state: { rows: 999 } };

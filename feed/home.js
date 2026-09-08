@@ -5,28 +5,28 @@ const { sortFeedItems } = require('./chronological');
 const { FEED_ALGORITHM_REF, FEED_PROJECTION_VERSION, computeFeedSnapshotRef } = require('./snapshot');
 const { applyOwnerFeedPreferences } = require('../preference/feed-policy');
 
-function buildHomeFeedSnapshot({
+async function buildHomeFeedSnapshot({
   subjectActorId,
   viewerContext = {},
   db,
   eventStore,
   disclosurePolicy
 }) {
-  const sourceGraph = buildFeedSourceGraph({
+  const sourceGraph = await buildFeedSourceGraph({
     subjectActorId,
     viewerContext,
     db,
     eventStore,
     disclosurePolicy
   });
-  const publicationItems = collectHomePublicationItems({
+  const publicationItems = await collectHomePublicationItems({
     sourceGraph,
     viewerContext,
     db,
     eventStore,
     disclosurePolicy
   });
-  const activityItems = collectHomeActivityItems({
+  const activityItems = await collectHomeActivityItems({
     sourceGraph,
     subjectActorId,
     viewerContext,
@@ -35,7 +35,7 @@ function buildHomeFeedSnapshot({
     disclosurePolicy
   });
   const visibleItems = [...publicationItems, ...activityItems];
-  const preferredItems = applyOwnerFeedPreferences({ ownerActorId: subjectActorId, viewerContext, items: visibleItems, db });
+  const preferredItems = await applyOwnerFeedPreferences({ ownerActorId: subjectActorId, viewerContext, items: visibleItems, db });
   const items = sortFeedItems(preferredItems);
   const snapshotRef = computeFeedSnapshotRef({
     subjectActorId,
@@ -53,8 +53,8 @@ function buildHomeFeedSnapshot({
   };
 }
 
-function buildHomeFeed(args) {
-  const snapshot = buildHomeFeedSnapshot(args);
+async function buildHomeFeed(args) {
+  const snapshot = await buildHomeFeedSnapshot(args);
   return {
     feed_type: 'home',
     subject_actor_id: args.subjectActorId,

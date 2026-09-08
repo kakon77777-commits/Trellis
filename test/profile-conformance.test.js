@@ -26,46 +26,46 @@ function context(eventStore, actorId) {
   };
 }
 
-test('Actor Profile vertical slice survives destruction and rebuild of all read projections', () => {
+test('Actor Profile vertical slice survives destruction and rebuild of all read projections', async () => {
   const db = createTestDatabase();
   const eventStore = new SQLiteEventStore(db, { now: () => '2026-09-02T11:00:01.000Z' });
 
   for (const actorId of ['actor:A', 'actor:B']) {
-    registerActor({
+    (await registerActor({
       command_id: `reg-${actorId}`, idempotency_key: `reg-${actorId}`,
       principal_id: `principal:${actorId}`, entity_id: actorId
-    }, { eventStore, authorize: evaluateAuthority });
+    }, { eventStore, authorize: evaluateAuthority }));
   }
 
-  setDisplayName({
+  (await setDisplayName({
     command_id: 'name-a', idempotency_key: 'name-a', principal_id: 'principal:actor:A',
     actor_id: 'actor:A', value: 'Aletheia', visibility: 'public'
-  }, context(eventStore, 'actor:A'));
-  setBio({
+  }, context(eventStore, 'actor:A')));
+  (await setBio({
     command_id: 'bio-a', idempotency_key: 'bio-a', principal_id: 'principal:actor:A',
     actor_id: 'actor:A', value: 'Private Bio', visibility: 'private'
-  }, context(eventStore, 'actor:A'));
-  setAvatarUrl({
+  }, context(eventStore, 'actor:A')));
+  (await setAvatarUrl({
     command_id: 'avatar-a', idempotency_key: 'avatar-a', principal_id: 'principal:actor:A',
     actor_id: 'actor:A', value: 'https://example.com/avatar.png', visibility: 'public'
-  }, context(eventStore, 'actor:A'));
+  }, context(eventStore, 'actor:A')));
 
-  const relationship = proposeRelationship({
+  const relationship = (await proposeRelationship({
     command_id: 'follow-ab', idempotency_key: 'follow-ab', principal_id: 'principal:actor:A',
     source_entity_id: 'actor:A', target_entity_id: 'actor:B', relationship_type: 'follows', visibility: 'public'
-  }, context(eventStore, 'actor:A'));
+  }, context(eventStore, 'actor:A')));
 
-  rebuildRelationshipProjection(db, eventStore);
-  projectActorProfile(db, eventStore, 'actor:A');
+  (await rebuildRelationshipProjection(db, eventStore));
+  (await projectActorProfile(db, eventStore, 'actor:A'));
 
-  const publicBefore = serializeProfileJson(buildActorProfile({
+  const publicBefore = serializeProfileJson((await buildActorProfile({
     actorId: 'actor:A', viewerContext: { viewer_actor_id: null, represents_actor_ids: [] },
     eventStore, db
-  }));
-  const selfBefore = serializeProfileJson(buildActorProfile({
+  })));
+  const selfBefore = serializeProfileJson((await buildActorProfile({
     actorId: 'actor:A', viewerContext: { viewer_actor_id: 'actor:A', represents_actor_ids: [] },
     eventStore, db
-  }));
+  })));
 
   assert.equal(publicBefore.presentation.display_name.value, 'Aletheia');
   assert.equal(publicBefore.presentation.bio, undefined);
@@ -79,17 +79,17 @@ test('Actor Profile vertical slice survives destruction and rebuild of all read 
     DELETE FROM relationships_current;
   `);
 
-  rebuildRelationshipProjection(db, eventStore);
-  rebuildActorProfileProjection(db, eventStore);
+  (await rebuildRelationshipProjection(db, eventStore));
+  (await rebuildActorProfileProjection(db, eventStore));
 
-  const publicAfter = serializeProfileJson(buildActorProfile({
+  const publicAfter = serializeProfileJson((await buildActorProfile({
     actorId: 'actor:A', viewerContext: { viewer_actor_id: null, represents_actor_ids: [] },
     eventStore, db
-  }));
-  const selfAfter = serializeProfileJson(buildActorProfile({
+  })));
+  const selfAfter = serializeProfileJson((await buildActorProfile({
     actorId: 'actor:A', viewerContext: { viewer_actor_id: 'actor:A', represents_actor_ids: [] },
     eventStore, db
-  }));
+  })));
 
   assert.deepEqual(publicAfter, publicBefore);
   assert.deepEqual(selfAfter, selfBefore);
@@ -98,7 +98,7 @@ test('Actor Profile vertical slice survives destruction and rebuild of all read 
   assert.deepEqual(eventStore.verifyHashChain('relationship', relationship.relationship_id), { ok: true, failureAt: null });
 });
 
-test('Actor Profile v0.1 production surfaces expose no forbidden authority shortcuts', () => {
+test('Actor Profile v0.1 production surfaces expose no forbidden authority shortcuts', async () => {
   const exported = new Set([
     ...Object.keys(entityService),
     ...Object.keys(profileService),
@@ -119,6 +119,6 @@ test('Actor Profile v0.1 production surfaces expose no forbidden authority short
   }
 });
 
-test('syntax release gate includes every profile module', () => {
+test('syntax release gate includes every profile module', async () => {
   assert.match(packageJson.scripts.check, /profile\/\*\.js/);
 });

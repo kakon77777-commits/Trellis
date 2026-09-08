@@ -9,12 +9,12 @@ function parseLimit(url){
 }
 function createPublicRoutes(){
   return async ({url,services})=>{
-    if(url.pathname==='/'){return {status:200,headers:{'content-type':'text/html; charset=utf-8'},body:renderHomePage(services.loadPublicFeed({limit:20,cursor:null}))};}
-    if(url.pathname==='/discover'){return {status:200,headers:{'content-type':'text/html; charset=utf-8'},body:renderExplorePage(services.loadPublicDirectory())};}
+    if(url.pathname==='/'){return {status:200,headers:{'content-type':'text/html; charset=utf-8'},body:renderHomePage(await services.loadPublicFeed({limit:20,cursor:null}))};}
+    if(url.pathname==='/discover'){return {status:200,headers:{'content-type':'text/html; charset=utf-8'},body:renderExplorePage(await services.loadPublicDirectory())};}
     if(url.pathname==='/api/public/feed'){
-      return jsonResponse(services.loadPublicFeed({limit:parseLimit(url),cursor:url.searchParams.get('cursor')}));
+      return jsonResponse(await services.loadPublicFeed({limit:parseLimit(url),cursor:url.searchParams.get('cursor')}));
     }
-    if(url.pathname==='/api/public/directory') return jsonResponse(services.loadPublicDirectory());
+    if(url.pathname==='/api/public/directory') return jsonResponse(await services.loadPublicDirectory());
     return null;
   };
 }

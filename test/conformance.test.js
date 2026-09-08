@@ -25,20 +25,20 @@ function registration(commandId, principalId, displayName) {
   };
 }
 
-test('Foundation vertical slice rebuilds exact graph from canonical history', () => {
+test('Foundation vertical slice rebuilds exact graph from canonical history', async () => {
   const db = createTestDatabase();
   const store = new SQLiteEventStore(db);
 
-  const a = registerActor(
+  const a = (await registerActor(
     registration('register-A', 'principal:A', 'Resident A'),
     { eventStore: store, authorize: evaluateAuthority }
-  );
-  const b = registerActor(
+  ));
+  const b = (await registerActor(
     registration('register-B', 'principal:B', 'Resident B'),
     { eventStore: store, authorize: evaluateAuthority }
-  );
+  ));
 
-  const proposed = proposeRelationship({
+  const proposed = (await proposeRelationship({
     command_id: 'cmd:foundation-propose',
     idempotency_key: 'idem:foundation-propose',
     principal_id: 'principal:A',
@@ -52,9 +52,9 @@ test('Foundation vertical slice rebuilds exact graph from canonical history', ()
     eventStore: store,
     principalActorId: a.entity_id,
     evaluatedAt: '2026-09-02T09:01:00.000Z'
-  });
+  }));
 
-  activateRelationship({
+  (await activateRelationship({
     command_id: 'cmd:foundation-activate',
     idempotency_key: 'idem:foundation-activate',
     principal_id: 'principal:B',
@@ -65,9 +65,9 @@ test('Foundation vertical slice rebuilds exact graph from canonical history', ()
     eventStore: store,
     principalActorId: b.entity_id,
     evaluatedAt: '2026-09-02T09:02:00.000Z'
-  });
+  }));
 
-  addEvidence({
+  (await addEvidence({
     command_id: 'cmd:foundation-evidence',
     idempotency_key: 'idem:foundation-evidence',
     principal_id: 'principal:A',
@@ -79,28 +79,28 @@ test('Foundation vertical slice rebuilds exact graph from canonical history', ()
     eventStore: store,
     principalActorId: a.entity_id,
     evaluatedAt: '2026-09-02T09:03:00.000Z'
-  });
+  }));
 
   assert.deepEqual(store.verifyHashChain('relationship', proposed.relationship_id), {
     ok: true,
     failureAt: null
   });
 
-  rebuildRelationshipProjection(db, store);
+  (await rebuildRelationshipProjection(db, store));
   const before = db.prepare('SELECT * FROM relationships_current ORDER BY relationship_id').all();
   assert.equal(before.length, 1);
   assert.equal(before[0].lifecycle, 'active');
   assert.equal(before[0].evidence_count, 1);
   assert.equal(before[0].created_event_id, store.readStream('relationship', proposed.relationship_id)[0].event_id);
-  assert.deepEqual(listPublicRelationships(db, () => 'allow').map(x => x.relationship_id), [proposed.relationship_id]);
+  assert.deepEqual((await listPublicRelationships(db, () => 'allow')).map(x => x.relationship_id), [proposed.relationship_id]);
 
   db.exec('DELETE FROM relationships_current');
-  rebuildRelationshipProjection(db, store);
+  (await rebuildRelationshipProjection(db, store));
   const after = db.prepare('SELECT * FROM relationships_current ORDER BY relationship_id').all();
   assert.deepEqual(after, before);
 });
 
-test('event algebra remains relationship-taxonomy agnostic', () => {
+test('event algebra remains relationship-taxonomy agnostic', async () => {
   const state = foldRelationship([
     {
       event_id: 'evt:future:1',
@@ -128,7 +128,7 @@ test('event algebra remains relationship-taxonomy agnostic', () => {
   assert.equal(state.lifecycle, 'active');
 });
 
-test('credential revocation event cannot erase credential-authorized historical relationship event', () => {
+test('credential revocation event cannot erase credential-authorized historical relationship event', async () => {
   const db = createTestDatabase();
   const store = new SQLiteEventStore(db);
 
@@ -221,7 +221,7 @@ test('credential revocation event cannot erase credential-authorized historical 
   assert.deepEqual(store.verifyHashChain('relationship', 'rel:credential-history'), { ok: true, failureAt: null });
 });
 
-test('forbidden authority-bypass APIs are absent from v0.1 surfaces', () => {
+test('forbidden authority-bypass APIs are absent from v0.1 surfaces', async () => {
   const eventStoreModule = require('../events/sqlite-event-store');
   const entityService = require('../entity/service');
   const bridge = require('../bridge/ai-board-candidate');

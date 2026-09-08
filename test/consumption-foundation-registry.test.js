@@ -26,7 +26,7 @@ const EXPECTED_CLASSES = Object.freeze({
   consumption: 'operational'
 });
 
-test('Foundation v0.2 registry classifies canonical, derived, and operational state explicitly', () => {
+test('Foundation v0.2 registry classifies canonical, derived, and operational state explicitly', async () => {
   const contract = require('../foundation/cross-domain-contract');
   assert.equal(contract.CONTRACT_REF, 'trellis-foundation-cross-domain:0.2');
   assert.deepEqual(contract.STATE_CLASSES, ['canonical','derived_projection','operational']);
@@ -39,14 +39,14 @@ test('Foundation v0.2 registry classifies canonical, derived, and operational st
   }
 });
 
-test('registry migration preserves X1 X2 X3 effective inheritance for every pre-Consumption domain', () => {
+test('registry migration preserves X1 X2 X3 effective inheritance for every pre-Consumption domain', async () => {
   const { effectiveContracts } = require('../foundation/cross-domain-contract');
   for (const domain of PREVIOUS_DOMAINS) {
     assert.deepEqual(effectiveContracts(domain), ['X1','X2','X3'], domain);
   }
 });
 
-test('Consumption is operational and inherits X2 X3 without claiming canonical X1', () => {
+test('Consumption is operational and inherits X2 X3 without claiming canonical X1', async () => {
   const { CONTRACT_REGISTRY, effectiveContracts } = require('../foundation/cross-domain-contract');
   assert.deepEqual(CONTRACT_REGISTRY.consumption, {
     state_class: 'operational',
@@ -57,7 +57,7 @@ test('Consumption is operational and inherits X2 X3 without claiming canonical X
   assert.deepEqual(effectiveContracts('consumption'), ['X2','X3']);
 });
 
-test('contract lists are class-aligned and canonical domains include X1', () => {
+test('contract lists are class-aligned and canonical domains include X1', async () => {
   const { CONTRACT_REGISTRY } = require('../foundation/cross-domain-contract');
   for (const [domain, entry] of Object.entries(CONTRACT_REGISTRY)) {
     if (entry.state_class === 'canonical') {

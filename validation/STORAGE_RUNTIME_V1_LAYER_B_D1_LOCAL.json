@@ -1,0 +1,459 @@
+{
+  "schema": "trellis-storage-layer-b-local-v1",
+  "generated_at": "2026-09-08T06:26:49.785Z",
+  "equivalence_match": true,
+  "sqlite": {
+    "schema": "trellis-storage-contract-v1",
+    "backend": "sqlite",
+    "status": "PASS",
+    "vectors": [
+      {
+        "name": "adapter-normalization",
+        "status": "PASS",
+        "evidence": {
+          "run_keys": [
+            "changes",
+            "last_row_id",
+            "rows_read",
+            "rows_written"
+          ],
+          "first": {
+            "k": "alpha",
+            "v": "one"
+          },
+          "all": [
+            {
+              "k": "alpha",
+              "v": "one"
+            }
+          ]
+        }
+      },
+      {
+        "name": "missing-row-semantics",
+        "status": "PASS",
+        "evidence": {
+          "first": null,
+          "all": []
+        }
+      },
+      {
+        "name": "failed-batch-rollback",
+        "status": "PASS",
+        "evidence": {
+          "failed": true,
+          "count": 0
+        }
+      },
+      {
+        "name": "conditional-upsert-where",
+        "status": "PASS",
+        "evidence": {
+          "row": {
+            "version": 1,
+            "write_token": "token-1"
+          },
+          "changes": 0
+        }
+      },
+      {
+        "name": "autoincrement-never-reuses-deleted-max",
+        "status": "PASS",
+        "evidence": {
+          "id": 4,
+          "label": "d"
+        }
+      },
+      {
+        "name": "eventstore-cas-stale-version",
+        "status": "PASS",
+        "evidence": {
+          "code": "VERSION_CONFLICT",
+          "events": 1
+        }
+      },
+      {
+        "name": "eventstore-concurrent-version-race",
+        "status": "PASS",
+        "evidence": {
+          "accepted": 1,
+          "rejected": [
+            "VERSION_CONFLICT"
+          ]
+        }
+      },
+      {
+        "name": "idempotency-same-digest-race",
+        "status": "PASS",
+        "evidence": {
+          "outcomes": [
+            "accepted",
+            "deduplicated"
+          ]
+        }
+      },
+      {
+        "name": "idempotency-different-digest-race",
+        "status": "PASS",
+        "evidence": {
+          "accepted": 1,
+          "rejected": [
+            "IDEMPOTENCY_CONFLICT"
+          ]
+        }
+      },
+      {
+        "name": "hash-chain-equivalence-fixture",
+        "status": "PASS",
+        "evidence": {
+          "ok": true,
+          "event_hashes": [
+            "ed6775438202afaacfa0715121728cc5999631e5202aa46f8d1d1229a4069c76",
+            "bd1d174b94a98424c99065d8eaddaa8c849173b44ddb99e72230a95f94481323"
+          ],
+          "prev_hashes": [
+            null,
+            "ed6775438202afaacfa0715121728cc5999631e5202aa46f8d1d1229a4069c76"
+          ]
+        }
+      },
+      {
+        "name": "global-offset-ordering",
+        "status": "PASS",
+        "evidence": {
+          "event_ids": [
+            "evt:contract:order-a",
+            "evt:contract:order-b",
+            "evt:contract:order-c"
+          ],
+          "relative_offsets": [
+            0,
+            1,
+            2
+          ]
+        }
+      },
+      {
+        "name": "projection-equivalence-fixture",
+        "status": "PASS",
+        "evidence": {
+          "publication_id": "pub:contract",
+          "author_actor_id": "actor:contract",
+          "publication_type": "post",
+          "visibility": "public",
+          "lifecycle": "active",
+          "current_revision": 1,
+          "current_body": "contract body",
+          "stream_version": 1,
+          "materializer_version": "publication-materializer:0.1"
+        }
+      },
+      {
+        "name": "consumption-operational-equivalence",
+        "status": "PASS",
+        "evidence": {
+          "consumer_actor_id": "actor:contract",
+          "target_kind": "publication",
+          "target_ref": "pub:contract",
+          "first_seen_at": "2026-09-08T00:00:00.000Z",
+          "first_opened_at": "2026-09-08T00:01:00.000Z",
+          "last_touched_at": "2026-09-08T00:01:00.000Z",
+          "expires_at": "2026-12-07T00:01:00.000Z",
+          "state_version": 2,
+          "retention_policy_ref": "trellis-consumption:retention:v1"
+        }
+      },
+      {
+        "name": "backend-result-shapes-do-not-leak",
+        "status": "PASS",
+        "evidence": {
+          "row_proto": "Object",
+          "result_keys": [
+            "changes",
+            "last_row_id",
+            "rows_read",
+            "rows_written"
+          ]
+        }
+      }
+    ],
+    "equivalence": {
+      "hash_chain": {
+        "ok": true,
+        "event_hashes": [
+          "ed6775438202afaacfa0715121728cc5999631e5202aa46f8d1d1229a4069c76",
+          "bd1d174b94a98424c99065d8eaddaa8c849173b44ddb99e72230a95f94481323"
+        ],
+        "prev_hashes": [
+          null,
+          "ed6775438202afaacfa0715121728cc5999631e5202aa46f8d1d1229a4069c76"
+        ]
+      },
+      "global_order": {
+        "event_ids": [
+          "evt:contract:order-a",
+          "evt:contract:order-b",
+          "evt:contract:order-c"
+        ],
+        "relative_offsets": [
+          0,
+          1,
+          2
+        ]
+      },
+      "projection": {
+        "publication_id": "pub:contract",
+        "author_actor_id": "actor:contract",
+        "publication_type": "post",
+        "visibility": "public",
+        "lifecycle": "active",
+        "current_revision": 1,
+        "current_body": "contract body",
+        "stream_version": 1,
+        "materializer_version": "publication-materializer:0.1"
+      },
+      "consumption": {
+        "consumer_actor_id": "actor:contract",
+        "target_kind": "publication",
+        "target_ref": "pub:contract",
+        "first_seen_at": "2026-09-08T00:00:00.000Z",
+        "first_opened_at": "2026-09-08T00:01:00.000Z",
+        "last_touched_at": "2026-09-08T00:01:00.000Z",
+        "expires_at": "2026-12-07T00:01:00.000Z",
+        "state_version": 2,
+        "retention_policy_ref": "trellis-consumption:retention:v1"
+      }
+    }
+  },
+  "d1": {
+    "schema": "trellis-storage-contract-v1",
+    "backend": "d1-local",
+    "status": "PASS",
+    "vectors": [
+      {
+        "name": "adapter-normalization",
+        "status": "PASS",
+        "evidence": {
+          "run_keys": [
+            "changes",
+            "last_row_id",
+            "rows_read",
+            "rows_written"
+          ],
+          "first": {
+            "k": "alpha",
+            "v": "one"
+          },
+          "all": [
+            {
+              "k": "alpha",
+              "v": "one"
+            }
+          ]
+        }
+      },
+      {
+        "name": "missing-row-semantics",
+        "status": "PASS",
+        "evidence": {
+          "first": null,
+          "all": []
+        }
+      },
+      {
+        "name": "failed-batch-rollback",
+        "status": "PASS",
+        "evidence": {
+          "failed": true,
+          "count": 0
+        }
+      },
+      {
+        "name": "conditional-upsert-where",
+        "status": "PASS",
+        "evidence": {
+          "row": {
+            "version": 1,
+            "write_token": "token-1"
+          },
+          "changes": 0
+        }
+      },
+      {
+        "name": "autoincrement-never-reuses-deleted-max",
+        "status": "PASS",
+        "evidence": {
+          "id": 4,
+          "label": "d"
+        }
+      },
+      {
+        "name": "eventstore-cas-stale-version",
+        "status": "PASS",
+        "evidence": {
+          "code": "VERSION_CONFLICT",
+          "events": 1
+        }
+      },
+      {
+        "name": "eventstore-concurrent-version-race",
+        "status": "PASS",
+        "evidence": {
+          "accepted": 1,
+          "rejected": [
+            "VERSION_CONFLICT"
+          ]
+        }
+      },
+      {
+        "name": "idempotency-same-digest-race",
+        "status": "PASS",
+        "evidence": {
+          "outcomes": [
+            "accepted",
+            "deduplicated"
+          ]
+        }
+      },
+      {
+        "name": "idempotency-different-digest-race",
+        "status": "PASS",
+        "evidence": {
+          "accepted": 1,
+          "rejected": [
+            "IDEMPOTENCY_CONFLICT"
+          ]
+        }
+      },
+      {
+        "name": "hash-chain-equivalence-fixture",
+        "status": "PASS",
+        "evidence": {
+          "ok": true,
+          "event_hashes": [
+            "ed6775438202afaacfa0715121728cc5999631e5202aa46f8d1d1229a4069c76",
+            "bd1d174b94a98424c99065d8eaddaa8c849173b44ddb99e72230a95f94481323"
+          ],
+          "prev_hashes": [
+            null,
+            "ed6775438202afaacfa0715121728cc5999631e5202aa46f8d1d1229a4069c76"
+          ]
+        }
+      },
+      {
+        "name": "global-offset-ordering",
+        "status": "PASS",
+        "evidence": {
+          "event_ids": [
+            "evt:contract:order-a",
+            "evt:contract:order-b",
+            "evt:contract:order-c"
+          ],
+          "relative_offsets": [
+            0,
+            1,
+            2
+          ]
+        }
+      },
+      {
+        "name": "projection-equivalence-fixture",
+        "status": "PASS",
+        "evidence": {
+          "publication_id": "pub:contract",
+          "author_actor_id": "actor:contract",
+          "publication_type": "post",
+          "visibility": "public",
+          "lifecycle": "active",
+          "current_revision": 1,
+          "current_body": "contract body",
+          "stream_version": 1,
+          "materializer_version": "publication-materializer:0.1"
+        }
+      },
+      {
+        "name": "consumption-operational-equivalence",
+        "status": "PASS",
+        "evidence": {
+          "consumer_actor_id": "actor:contract",
+          "target_kind": "publication",
+          "target_ref": "pub:contract",
+          "first_seen_at": "2026-09-08T00:00:00.000Z",
+          "first_opened_at": "2026-09-08T00:01:00.000Z",
+          "last_touched_at": "2026-09-08T00:01:00.000Z",
+          "expires_at": "2026-12-07T00:01:00.000Z",
+          "state_version": 2,
+          "retention_policy_ref": "trellis-consumption:retention:v1"
+        }
+      },
+      {
+        "name": "backend-result-shapes-do-not-leak",
+        "status": "PASS",
+        "evidence": {
+          "row_proto": "Object",
+          "result_keys": [
+            "changes",
+            "last_row_id",
+            "rows_read",
+            "rows_written"
+          ]
+        }
+      }
+    ],
+    "equivalence": {
+      "hash_chain": {
+        "ok": true,
+        "event_hashes": [
+          "ed6775438202afaacfa0715121728cc5999631e5202aa46f8d1d1229a4069c76",
+          "bd1d174b94a98424c99065d8eaddaa8c849173b44ddb99e72230a95f94481323"
+        ],
+        "prev_hashes": [
+          null,
+          "ed6775438202afaacfa0715121728cc5999631e5202aa46f8d1d1229a4069c76"
+        ]
+      },
+      "global_order": {
+        "event_ids": [
+          "evt:contract:order-a",
+          "evt:contract:order-b",
+          "evt:contract:order-c"
+        ],
+        "relative_offsets": [
+          0,
+          1,
+          2
+        ]
+      },
+      "projection": {
+        "publication_id": "pub:contract",
+        "author_actor_id": "actor:contract",
+        "publication_type": "post",
+        "visibility": "public",
+        "lifecycle": "active",
+        "current_revision": 1,
+        "current_body": "contract body",
+        "stream_version": 1,
+        "materializer_version": "publication-materializer:0.1"
+      },
+      "consumption": {
+        "consumer_actor_id": "actor:contract",
+        "target_kind": "publication",
+        "target_ref": "pub:contract",
+        "first_seen_at": "2026-09-08T00:00:00.000Z",
+        "first_opened_at": "2026-09-08T00:01:00.000Z",
+        "last_touched_at": "2026-09-08T00:01:00.000Z",
+        "expires_at": "2026-12-07T00:01:00.000Z",
+        "state_version": 2,
+        "retention_policy_ref": "trellis-consumption:retention:v1"
+      }
+    }
+  },
+  "wrangler": {
+    "persist_dir": "C:\\Users\\kakon\\AppData\\Local\\Temp\\trellis-storage-runtime-persist\\contract-local",
+    "config": ".trellis-storage-contract.wrangler.toml",
+    "database_name": "evemisslab-trellis",
+    "binding": "DB",
+    "stdout": "",
+    "stderr": ""
+  }
+}

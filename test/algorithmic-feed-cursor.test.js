@@ -42,7 +42,7 @@ function feed(extra={}) {
   return merged;
 }
 
-test('personalized cursor carries score, chronological key, and pinned ranking reference time',()=>{
+test('personalized cursor carries score, chronological key, and pinned ranking reference time',async ()=>{
   const f=feed();
   const cursor=cursorForPersonalizedItem(f,f.items[1]);
   assert.deepEqual(cursor,{
@@ -52,7 +52,7 @@ test('personalized cursor carries score, chronological key, and pinned ranking r
   assert.deepEqual(decodePersonalizedFeedCursor(encodePersonalizedFeedCursor(cursor)),cursor);
 });
 
-test('page 2 uses the same snapshot and ranking reference time pinned by page 1 cursor',()=>{
+test('page 2 uses the same snapshot and ranking reference time pinned by page 1 cursor',async ()=>{
   const f=feed();
   const page1=paginatePersonalizedFeed({feed:f,limit:2});
   assert.deepEqual(page1.items.map(i=>i.feed_item_id),['feed:publication:pub:A','feed:publication:pub:B']);
@@ -63,27 +63,27 @@ test('page 2 uses the same snapshot and ranking reference time pinned by page 1 
   assert.equal(page2.next_cursor,null);
 });
 
-test('visible scored-state change changes personalized snapshot',()=>{
+test('visible scored-state change changes personalized snapshot',async ()=>{
   const before=feed();
   const changedItems=before.items.map(i=>i.feed_item_id==='feed:publication:pub:B'?{...i,score:{...i.score,novelty_points:-500,total_points:6500}}:i);
   const after=feed({items:changedItems});
   assert.notEqual(after.snapshot_ref,before.snapshot_ref);
 });
 
-test('ranking reference time is part of snapshot identity',()=>{
+test('ranking reference time is part of snapshot identity',async ()=>{
   const a=feed({ranking_reference_time:'2026-09-03T12:00:00.000Z'});
   const b=feed({ranking_reference_time:'2026-09-03T12:00:01.000Z'});
   assert.notEqual(a.snapshot_ref,b.snapshot_ref);
 });
 
-test('cursor fails with FEED_SNAPSHOT_CHANGED when snapshot or pinned reference time differs',()=>{
+test('cursor fails with FEED_SNAPSHOT_CHANGED when snapshot or pinned reference time differs',async ()=>{
   const original=feed();
   const cursor=paginatePersonalizedFeed({feed:original,limit:1}).next_cursor;
   const changed=feed({ranking_reference_time:'2026-09-03T13:00:00.000Z'});
   assert.throws(()=>paginatePersonalizedFeed({feed:changed,limit:1,cursor}),/FEED_SNAPSHOT_CHANGED/);
 });
 
-test('cursor item match includes total score and complete chronological key',()=>{
+test('cursor item match includes total score and complete chronological key',async ()=>{
   const f=feed();
   const cursor=decodePersonalizedFeedCursor(paginatePersonalizedFeed({feed:f,limit:1}).next_cursor);
   const tampered=encodePersonalizedFeedCursor({...cursor,last_total_points:123});
