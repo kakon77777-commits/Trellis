@@ -8,3 +8,8 @@ binding = "DB"
 database_name = "evemisslab-trellis"
 database_id = "__TRELLIS_D1_DATABASE_ID__"
 migrations_dir = "db/migrations"
+
+[assets]
+directory = "web/public"
+binding = "ASSETS"
+run_worker_first = ["/assets/*"]
