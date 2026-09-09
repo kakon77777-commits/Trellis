@@ -26,6 +26,13 @@ class AilpStore {
     return rowOrNull(await this.sql.first(`SELECT * FROM ailp_objects WHERE object_digest=?`, [digest]));
   }
 
+  async getLatestObjectByTypeAndSubject(objectType, subjectRef) {
+    return rowOrNull(await this.sql.first(
+      `SELECT * FROM ailp_objects WHERE object_type=? AND subject_ref=? ORDER BY created_at DESC LIMIT 1`,
+      [objectType, subjectRef]
+    ));
+  }
+
   // -- ailp_challenges: single-use, idempotent-on-same-proof --
   async putChallenge({ challengeId, requestDigest, challengeJson, issuedAt, expiresAt }) {
     await this.sql.run(

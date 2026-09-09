@@ -22,6 +22,20 @@ function requireString(value, code) {
   return value;
 }
 
+// -- identity root (self-declared by the AI; Trellis only ever verifies+observes) --
+
+function verifyAiIdentityRoot(root) {
+  if (root.schema_version !== AILP_VERSION || root.object_type !== 'ai_identity_root') throw new AILPError('INVALID_AI_IDENTITY_ROOT');
+  if (root.identity_epoch !== 1) throw new AILPError('INVALID_IDENTITY_EPOCH');
+  const methods = root.continuity_verification_methods || [];
+  if (methods.length === 0) throw new AILPError('CONTINUITY_METHOD_REQUIRED');
+  const signature = root.signature || {};
+  const method = methods.find((m) => m.id === signature.key_id);
+  if (!method) throw new AILPError('SIGNATURE_KEY_MISMATCH');
+  verifyDocumentSignature(root, method.public_jwk, { expectedKeyId: signature.key_id });
+  return { valid: true, aiIdentityId: root.ai_identity_id, identityEpoch: 1 };
+}
+
 // -- runtime certificate --
 
 function verifyRuntimeCertificate(certificate, operationalPublicJwk, { at }) {
@@ -288,6 +302,7 @@ function verifyRequestProof({ proof, method, targetUri, sessionId, requestId, co
 module.exports = {
   AILP_VERSION,
   REQUEST_SIGNATURE_PROFILE,
+  verifyAiIdentityRoot,
   verifyRuntimeCertificate,
   issueLoginChallenge,
   verifyLoginProof,
