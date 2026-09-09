@@ -2,6 +2,8 @@
 // No other module may reference these tables directly -- Sol's implementation
 // contract requires publication/relationship services to reach AILP state only
 // through the authenticated adapter (ailp/context.js), never raw SQL.
+const { AILPError } = require('./canonical');
+
 function rowOrNull(row) {
   return row || null;
 }
@@ -53,9 +55,9 @@ class AilpStore {
   // a DIFFERENT proof digest (someone trying to reuse the challenge slot).
   async consumeChallenge(challengeId, { proofDigest, resultRef }) {
     const existing = await this.getChallenge(challengeId);
-    if (!existing) throw new Error('AILP_CHALLENGE_NOT_FOUND');
+    if (!existing) throw new AILPError('AILP_CHALLENGE_NOT_FOUND');
     if (existing.consumed_proof_digest != null) {
-      if (existing.consumed_proof_digest !== proofDigest) throw new Error('AILP_CHALLENGE_PROOF_MISMATCH');
+      if (existing.consumed_proof_digest !== proofDigest) throw new AILPError('AILP_CHALLENGE_PROOF_MISMATCH');
       return { firstConsumption: false, resultRef: existing.result_ref };
     }
     const result = await this.sql.run(
@@ -67,7 +69,7 @@ class AilpStore {
       // Lost a race with a concurrent consumer; re-read and treat like a replay.
       const raced = await this.getChallenge(challengeId);
       if (raced && raced.consumed_proof_digest === proofDigest) return { firstConsumption: false, resultRef: raced.result_ref };
-      throw new Error('AILP_CHALLENGE_PROOF_MISMATCH');
+      throw new AILPError('AILP_CHALLENGE_PROOF_MISMATCH');
     }
     return { firstConsumption: true, resultRef };
   }
