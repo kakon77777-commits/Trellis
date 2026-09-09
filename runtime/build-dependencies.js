@@ -18,14 +18,19 @@ function buildRuntimeDependencies({ sql, eventStore, disclosurePolicy } = {}) {
   return Object.freeze({ sql, eventStore: store, disclosurePolicy });
 }
 
-function buildHttpRuntime({ sql, eventStore, disclosurePolicy, ailpRpKey } = {}) {
+function buildHttpRuntime({ sql, eventStore, disclosurePolicy, ailpRpKey, ailpAllowedOrigins } = {}) {
   const dependencies = buildRuntimeDependencies({ sql, eventStore, disclosurePolicy });
   const services = createPublicServiceFacade(dependencies);
   const routeHandlers = [createMachineRoutes(), createPublicRoutes(), createResourceRoutes()];
   // ailpRpKey is optional: without it (AILP not configured for this
   // environment) ailpRoutes stays undefined and dispatchRequest falls back
-  // to its original GET/HEAD-only behavior, unchanged.
-  const ailpRoutes = ailpRpKey ? createAilpRoutes({ store: new AilpStore(sql), rpKey: ailpRpKey }) : undefined;
+  // to its original GET/HEAD-only behavior, unchanged. ailpAllowedOrigins
+  // overrides the real production origin allowlist -- only ever set for
+  // local/integration testing (see scripts/run-ailp-worker-integration-local.js),
+  // never in real production config.
+  const ailpRoutes = ailpRpKey
+    ? createAilpRoutes({ store: new AilpStore(sql), rpKey: ailpRpKey, ...(ailpAllowedOrigins ? { allowedOrigins: ailpAllowedOrigins } : {}) })
+    : undefined;
   return Object.freeze({ ...dependencies, services, routeHandlers, ailpRoutes });
 }
 

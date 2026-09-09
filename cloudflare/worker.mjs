@@ -20,7 +20,13 @@ export function buildWorkerDependencies(env = {}) {
   } catch (e) {
     ailpRpKey = undefined;
   }
-  return buildHttpRuntime({ sql, ailpRpKey });
+  // Only ever set by local integration testing (never in real production
+  // config/secrets) to let a localhost wrangler-dev origin through AILP's
+  // exact-origin allowlist.
+  const ailpAllowedOrigins = env.AILP_LOCAL_TEST_ALLOWED_ORIGIN
+    ? [env.AILP_LOCAL_TEST_ALLOWED_ORIGIN]
+    : undefined;
+  return buildHttpRuntime({ sql, ailpRpKey, ailpAllowedOrigins });
 }
 
 function toFetchResponse(response) {
@@ -36,7 +42,8 @@ export default {
     const response = await dispatchRequest(request, {
       routeHandlers: runtime.routeHandlers,
       services: runtime.services,
-      assets: env.ASSETS
+      assets: env.ASSETS,
+      ailpRoutes: runtime.ailpRoutes
     });
     return toFetchResponse(response);
   }

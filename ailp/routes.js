@@ -452,9 +452,9 @@ async function handleActorBindingsBootstrap({ parsed, session, rpKey, store }) {
 
 // -- top-level route table --
 
-function createAilpRoutes({ store, rpKey }) {
+function createAilpRoutes({ store, rpKey, allowedOrigins = ALLOWED_ORIGINS }) {
   return async function ailpRoutes({ request, url, services }) {
-    if (!ALLOWED_ORIGINS.includes(url.origin)) {
+    if (!allowedOrigins.includes(url.origin)) {
       if (url.pathname === '/.well-known/ailp' || url.pathname.startsWith('/ailp/v1/')) {
         return json(403, { error: 'AILP_ORIGIN_NOT_ALLOWED' });
       }

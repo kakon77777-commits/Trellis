@@ -1,0 +1,32 @@
+{
+  "schema": "trellis-ailp-v1-worker-integration-local",
+  "generated_at": "2026-09-09T16:33:40.696Z",
+  "real_http": true,
+  "real_local_d1": true,
+  "worker_process_restart_persistence": {
+    "still_active_session_status_after_restart": 200,
+    "revoked_session_stays_rejected_after_restart_status": 400,
+    "revoked_session_error_after_restart": "SESSION_NOT_ACTIVE"
+  },
+  "anonymous_surface_unaffected": {
+    "home_status": 200,
+    "well_known_trellis_status": 200,
+    "w6_claimed_actor_status": 400
+  },
+  "discovery_status": 200,
+  "vertical_slice": {
+    "register_status": 202,
+    "authenticate_status": 200,
+    "recognition_reason": "first_seen_self_root",
+    "session_check_status": 200,
+    "actor_bootstrap_status": 201,
+    "session_class_after_bootstrap": "actor_bound",
+    "revoke_status": 200
+  },
+  "wrangler": {
+    "database_name": "evemisslab-trellis",
+    "binding": "DB",
+    "config": ".trellis-ailp-worker-integration.wrangler.toml",
+    "persist_dir": "C:\\Users\\kakon\\AppData\\Local\\Temp\\trellis-storage-runtime-persist\\ailp-worker-integration-local"
+  }
+}

@@ -14,7 +14,8 @@
     "test:storage:sqlite": "node --test test/storage-contract/sqlite.test.js",
     "test:storage:d1-local": "node scripts/run-d1-contract-local.js",
     "test:storage:worker-d1-local": "node scripts/run-d1-worker-integration-local.js",
-    "storage:seal": "node scripts/evaluate-storage-runtime-v1-gate.js"
+    "storage:seal": "node scripts/evaluate-storage-runtime-v1-gate.js",
+    "test:ailp:worker-d1-local": "node scripts/run-ailp-worker-integration-local.js"
   },
   "engines": {
     "node": ">=22.5.0"
