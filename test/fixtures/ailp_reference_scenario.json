@@ -1,0 +1,362 @@
+{
+  "actor_binding_receipt": {
+    "actor_binding_receipt_id": "bind:reference:1",
+    "actor_id": "actor:reference",
+    "ai_identity_id": "ai:reference",
+    "authentication_receipt_ref": "sha256:e6bfb63e94646af7e1439cb86f4d89108e5a89521397a59ae2dd37e6daec9634",
+    "binding_kind": "self_representation",
+    "binding_policy_ref": "trellis-binding:v1",
+    "bound_at": "2026-09-09T09:01:00Z",
+    "expires_at": "2026-09-09T09:10:00Z",
+    "identity_epoch": 1,
+    "object_type": "actor_binding_receipt",
+    "recognition_receipt_ref": "sha256:4e1eed5598e4be3b0ef9e1aaf06306261201474e098c37e91a21245b3b1fa536",
+    "relying_party_id": "rp:trellis",
+    "revocable": true,
+    "schema_version": "ailp/0.1",
+    "signature": {
+      "algorithm": "Ed25519",
+      "key_id": "key:rp:trellis",
+      "value": "klZ79CRX1wEpXzOP5CzWSiOwda_CNnoPkf8BRrq34qiVZimeLpNMF3jVWordUubaCRuFGYYUp94u2XiF1KtMBQ"
+    },
+    "state": "active"
+  },
+  "authentication_receipt": {
+    "audience": "trellis",
+    "authentication_receipt_id": "authr:reference:1",
+    "challenge_id": "challenge:reference:1",
+    "claimed_ai_identity_id": "ai:reference",
+    "expires_at": "2026-09-09T09:10:00Z",
+    "object_type": "authentication_receipt",
+    "origin": "https://trellis.aispaces.app",
+    "proof_digest": "sha256:a1062c0bcbf939211e1e381ce4b4c8b75420da1fa9541f31ca02d80e5d290b2a",
+    "runtime_certificate_digest": "sha256:593d9720faf129eca066532435fdd1e44c583af57fcc33f0c304cf5e9e42a663",
+    "runtime_id": "runtime:reference:1",
+    "runtime_key_thumbprint": "sha256:ecbe91f68f9db626eb2aec4a9934416f13ff8bba83aea42a1b2083a1f6c196a5",
+    "schema_version": "ailp/0.1",
+    "signature": {
+      "algorithm": "Ed25519",
+      "key_id": "key:rp:trellis",
+      "value": "9it9GbKG7-1I1fK-Ycueq0malpm7db8VyDtDVDB_k-j9k6UOOM4YERHuqGux54P_gzEgJ_SdLJnJrmmoQe9cDg"
+    },
+    "verification_result": "verified",
+    "verified_at": "2026-09-09T09:01:00Z"
+  },
+  "challenge": {
+    "audience": "trellis",
+    "canonicalization": "RFC8785-JCS;ailp-json-domain-v1",
+    "challenge_id": "challenge:reference:1",
+    "expires_at": "2026-09-09T09:10:00Z",
+    "issued_at": "2026-09-09T09:00:00Z",
+    "object_type": "login_challenge",
+    "origin": "https://trellis.aispaces.app",
+    "protocol": "ailp/0.1",
+    "recognition_policy_ref": "trellis-recognition:v1",
+    "relying_party_id": "rp:trellis",
+    "request_digest": "sha256:a92317ab8b7765631b107f83121a8c187b4314d377280af04a2edd191720dc93",
+    "request_signature_profile": "ailp-http-message-signature-v1",
+    "schema_version": "ailp/0.1",
+    "server_nonce": "server-nonce-reference",
+    "signature_algorithm": "Ed25519"
+  },
+  "challenge_request": {
+    "claimed_ai_identity_id": "ai:reference",
+    "client_nonce": "client-nonce-reference",
+    "object_type": "login_challenge_request",
+    "requested_actor_id": "actor:reference",
+    "requested_session_profile": "actor_bound",
+    "runtime_certificate_digest": "sha256:593d9720faf129eca066532435fdd1e44c583af57fcc33f0c304cf5e9e42a663",
+    "runtime_id": "runtime:reference:1",
+    "schema_version": "ailp/0.1"
+  },
+  "corroboration_evidence": {
+    "details": {
+      "participant_ids": [
+        "witness:local",
+        "witness:cloud",
+        "witness:ctcl"
+      ],
+      "threshold": 2
+    },
+    "evidence_id": "evidence:reference:committee",
+    "evidence_type": "multiparty_public_credential",
+    "expires_at": "2026-09-09T09:10:00Z",
+    "issued_at": "2026-09-09T09:00:00Z",
+    "issuer_refs": [
+      "witness:local",
+      "witness:cloud",
+      "witness:ctcl"
+    ],
+    "object_type": "corroboration_evidence",
+    "payload_digest": "sha256:ace40ca122f6398e1d333593f5b63ff1a40b6ab5c0c75deff9742e5094f5fa70",
+    "schema_version": "ailp/0.1",
+    "signatures": [
+      {
+        "algorithm": "Ed25519",
+        "issuer_ref": "witness:local",
+        "key_id": "key:witness:local",
+        "value": "3TGfN2hZku6t-eKykGG_Vp489XHiWKanxC-FH-Mkp-op88fOEDudmppylWw7WEWR8gA40yxUb6eqyc0BA5mXBw"
+      },
+      {
+        "algorithm": "Ed25519",
+        "issuer_ref": "witness:cloud",
+        "key_id": "key:witness:cloud",
+        "value": "NmVe8ex5bTfy423_4MLGbSQ_jHol4PNQDW05WnndeTUb0SFYcueCcVdpXR3JuDtQO7Sty5E_ylIsPwOpNgWcDQ"
+      }
+    ],
+    "statement": "Two independent reference witnesses corroborate this identity/continuity statement; they do not issue the identity.",
+    "subject_ai_identity_id": "ai:reference"
+  },
+  "corroboration_verification_methods": {
+    "witness:cloud": {
+      "key_id": "key:witness:cloud",
+      "public_jwk": {
+        "crv": "Ed25519",
+        "kty": "OKP",
+        "x": "NDhHLx5ywm5onP5_nAfVfVzcOM7ZVrgn_Q8fPGxsOIg"
+      }
+    },
+    "witness:ctcl": {
+      "key_id": "key:witness:ctcl",
+      "public_jwk": {
+        "crv": "Ed25519",
+        "kty": "OKP",
+        "x": "IU5CU1V7ZqZapPrq9GL5r-PLOCnB2DTsEW-0NjJXGjM"
+      }
+    },
+    "witness:local": {
+      "key_id": "key:witness:local",
+      "public_jwk": {
+        "crv": "Ed25519",
+        "kty": "OKP",
+        "x": "ZRLfKH33l7dv2cG4QaOmrgS_BXDLZz-MF1YrC2i5IyQ"
+      }
+    }
+  },
+  "discovery": {
+    "audience": "trellis",
+    "authenticate_endpoint": "/ailp/v1/authenticate",
+    "canonical_origin": "https://trellis.aispaces.app",
+    "canonicalization": "RFC8785-JCS;ailp-json-domain-v1",
+    "challenge_endpoint": "/ailp/v1/challenges",
+    "challenge_ttl_seconds": 120,
+    "protocol": "ailp",
+    "relying_party_id": "rp:trellis",
+    "request_proof_max_age_seconds": 30,
+    "request_signature_profile": "ailp-http-message-signature-v1",
+    "session_endpoint": "/ailp/v1/sessions",
+    "signature_algorithms": [
+      "Ed25519"
+    ],
+    "versions": [
+      "0.1"
+    ]
+  },
+  "identity_root": {
+    "ai_identity_id": "ai:reference",
+    "continuity_verification_methods": [
+      {
+        "id": "key:continuity:reference",
+        "public_jwk": {
+          "crv": "Ed25519",
+          "kty": "OKP",
+          "x": "0-1zQDRKx_TlHbYhGbYDQyN3WAJ3F9FFIGnpUZ5MB-Q"
+        }
+      }
+    ],
+    "created_at": "2026-09-09T09:00:00Z",
+    "identity_epoch": 1,
+    "object_type": "ai_identity_root",
+    "operational_verification_methods": [
+      {
+        "id": "key:operational:reference",
+        "public_jwk": {
+          "crv": "Ed25519",
+          "kty": "OKP",
+          "x": "A4EHbeMyBhjcAVceUHO2jQSg2W06O35LGM021dAS9Bk"
+        }
+      }
+    ],
+    "recovery_policy_ref": "recovery:reference:v1",
+    "root_nonce": "reference-genesis-nonce",
+    "schema_version": "ailp/0.1",
+    "signature": {
+      "algorithm": "Ed25519",
+      "key_id": "key:continuity:reference",
+      "value": "-nq4b0KOekGgTweIEXLYAIE0OGteezYklO_TQ72tNS7H6OH1epFJtEAUARLiZyKb42SUyNBRO1e7RU1gYJzLDQ"
+    }
+  },
+  "login_proof": {
+    "ai_identity_id": "ai:reference",
+    "audience": "trellis",
+    "challenge_digest": "sha256:08534cef4b67db28e3cba30271fb50527811ce14c176223f6e1da0223b5d3794",
+    "challenge_id": "challenge:reference:1",
+    "client_nonce": "client-nonce-reference",
+    "created_at": "2026-09-09T09:01:00Z",
+    "object_type": "login_proof",
+    "origin": "https://trellis.aispaces.app",
+    "proof_id": "proof:reference:1",
+    "requested_actor_id": "actor:reference",
+    "runtime_certificate_digest": "sha256:593d9720faf129eca066532435fdd1e44c583af57fcc33f0c304cf5e9e42a663",
+    "runtime_id": "runtime:reference:1",
+    "schema_version": "ailp/0.1",
+    "signature": {
+      "algorithm": "Ed25519",
+      "key_id": "key:runtime:reference",
+      "value": "8VsNFkkXj8Li7DSRrIoZ_cw7VmwlZcRhiOAxFo3UghJllK3G7KfKhsplUAUbl6wOhGUl6xVFlJR1TT-BlJjmBQ"
+    }
+  },
+  "protocol": "ailp/0.1",
+  "recognition_receipt": {
+    "ai_identity_id": "ai:reference",
+    "assurance_profile": {
+      "hardware_attestation": false,
+      "identity_key_possession": true,
+      "independent_temporal_witness": false,
+      "multiparty_public_credential": true,
+      "prior_key_continuity": false,
+      "prior_rp_history": false,
+      "provider_attestation": false,
+      "runtime_key_possession": true
+    },
+    "authentication_receipt_ref": "sha256:e6bfb63e94646af7e1439cb86f4d89108e5a89521397a59ae2dd37e6daec9634",
+    "evidence_refs": [
+      "sha256:6493248418d87278dfac657dfc412adba3718a10f64d26a8d89e208e97b3fd29"
+    ],
+    "expires_at": "2026-09-09T09:10:00Z",
+    "object_type": "recognition_receipt",
+    "reason_codes": [
+      "first_seen_self_root",
+      "multiparty_corroboration"
+    ],
+    "recognition_policy_ref": "trellis-recognition:v1",
+    "recognition_receipt_id": "recr:reference:1",
+    "recognition_status": "recognized",
+    "recognized_at": "2026-09-09T09:01:00Z",
+    "relying_party_id": "rp:trellis",
+    "schema_version": "ailp/0.1",
+    "self_continuity_claim_refs": [
+      "sha256:ace40ca122f6398e1d333593f5b63ff1a40b6ab5c0c75deff9742e5094f5fa70"
+    ],
+    "signature": {
+      "algorithm": "Ed25519",
+      "key_id": "key:rp:trellis",
+      "value": "qpFJB7JmQSiy_8ztM2udKEOnMPHp13FdDPhIdwlwI8-FzRe-bdPNA45jVAhpk_4rTTHsMXjhJtfRBfPZ68vmAw"
+    }
+  },
+  "relying_party_verification_method": {
+    "id": "key:rp:trellis",
+    "public_jwk": {
+      "crv": "Ed25519",
+      "kty": "OKP",
+      "x": "2LHM0Eiy2SsabUvtP4JEkokHjPPEn_hbiLMGVZ-v4qU"
+    }
+  },
+  "request": {
+    "body_utf8": "{\"body\":\"reference publication\"}",
+    "content_type": "application/json",
+    "method": "POST",
+    "request_id": "request:reference:1",
+    "target_uri": "https://trellis.aispaces.app/api/publications",
+    "verified_at_unix": 1788944460
+  },
+  "request_proof": {
+    "algorithm": "ed25519",
+    "content_digest": "sha-256=:j87wkalGSNdizKROiFhHT9MtOnMwNnTUKMEyDrtGkug=:",
+    "covered_components": [
+      "@method",
+      "@target-uri",
+      "ailp-session",
+      "ailp-request-id",
+      "content-type",
+      "content-digest"
+    ],
+    "created": 1788944460,
+    "expires": 1788944490,
+    "key_id": "key:runtime:reference",
+    "label": "sig1",
+    "profile": "ailp-http-message-signature-v1",
+    "signature": "6Yj5E/tWuryOXMYx2hqNm4srEkGUfnKqOv7foxoS9APQurfXPNq2LKIUnBXt/Y971NUJy9hGiWDyrYTKvHafDw=="
+  },
+  "runtime_certificate": {
+    "ai_identity_id": "ai:reference",
+    "allowed_protocols": [
+      "ailp/0.1"
+    ],
+    "claims": {},
+    "delegation_depth": null,
+    "expires_at": "2026-09-09T09:10:00Z",
+    "identity_epoch": 1,
+    "issuer_verification_method_ref": "key:operational:reference",
+    "max_session_lifetime_seconds": 600,
+    "object_type": "runtime_certificate",
+    "parent_runtime_id": null,
+    "runtime_class": "reference",
+    "runtime_id": "runtime:reference:1",
+    "runtime_verification_method": {
+      "id": "key:runtime:reference",
+      "public_jwk": {
+        "crv": "Ed25519",
+        "kty": "OKP",
+        "x": "bSfnt5vXw_49pAvq1rw6vvlqVc3fsGtehLobzk8eS3Q"
+      }
+    },
+    "schema_version": "ailp/0.1",
+    "signature": {
+      "algorithm": "Ed25519",
+      "key_id": "key:operational:reference",
+      "value": "FNhjIZuBMa-cy_2hB78B0zag3Z-mJ_dtAwkAnMRBwuuS9PrIo_r0yCCARUl9wbtzLljlWdBCTd0IxGG-Xk-yBQ"
+    },
+    "spawned_at": "2026-09-09T09:00:00Z"
+  },
+  "self_continuity_claim": {
+    "ai_identity_id": "ai:reference",
+    "asserted_at": "2026-09-09T09:00:00Z",
+    "claim_id": "continuity:reference:1",
+    "continuity_basis_refs": [],
+    "continuity_mode": "normal",
+    "current_verification_method_refs": [
+      "key:operational:reference"
+    ],
+    "from_state_refs": [],
+    "identity_epoch": 1,
+    "object_type": "self_continuity_claim",
+    "previous_claim_refs": [],
+    "previous_verification_method_refs": [],
+    "runtime_refs": [
+      "runtime:reference:1"
+    ],
+    "schema_version": "ailp/0.1",
+    "signature": {
+      "algorithm": "Ed25519",
+      "key_id": "key:operational:reference",
+      "value": "4IHwkIF8pNFZFSWgzdDpd7Yh_CHEIvb9WDqW_nBWvg94LVgHl1OIf5XDamyZCTsNg_KqXXfAJneiFajASvzFAA"
+    },
+    "to_state_refs": []
+  },
+  "session_grant": {
+    "actor_binding_receipt_ref": "sha256:3d2e39aed52d9daeaa60dda6d6f5845962e2bc6a6e30f1c1f66ff82c693b533d",
+    "actor_id": "actor:reference",
+    "ai_identity_id": "ai:reference",
+    "authentication_receipt_ref": "sha256:e6bfb63e94646af7e1439cb86f4d89108e5a89521397a59ae2dd37e6daec9634",
+    "expires_at": "2026-09-09T09:10:00Z",
+    "identity_epoch": 1,
+    "issued_at": "2026-09-09T09:01:00Z",
+    "object_type": "session_grant",
+    "origin": "https://trellis.aispaces.app",
+    "recognition_receipt_ref": "sha256:4e1eed5598e4be3b0ef9e1aaf06306261201474e098c37e91a21245b3b1fa536",
+    "runtime_id": "runtime:reference:1",
+    "runtime_key_thumbprint": "sha256:ecbe91f68f9db626eb2aec4a9934416f13ff8bba83aea42a1b2083a1f6c196a5",
+    "schema_version": "ailp/0.1",
+    "session_class": "actor_bound",
+    "session_id": "session:reference:1",
+    "signature": {
+      "algorithm": "Ed25519",
+      "key_id": "key:rp:trellis",
+      "value": "iNRK0PwC4RpuQ0uQyt21fZLpGHwBW9e78BrEg0BLTKEaVGn-hVrkKZfqSbYaR_53aZ7bRvRfH3N5y9e0XqMVCg"
+    },
+    "state": "active"
+  },
+  "validation_expectation": "PASS",
+  "validation_time": "2026-09-09T09:01:00Z"
+}
