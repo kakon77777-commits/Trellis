@@ -116,14 +116,22 @@ class AilpStore {
   }
 
   // -- ailp_sessions --
+  // runtimeCertificateRef pins the EXACT runtime_certificate digest verified
+  // at this session's issuance -- request-proof verification must fetch by
+  // this exact digest, never "the latest certificate for this runtime_id",
+  // otherwise a party who only compromised the operational key (which should
+  // only ever mint NEW runtime certificates for a fresh authenticate attempt)
+  // could register a new certificate under the same runtime_id and hijack
+  // verification of an already-active session it never actually authenticated.
   async putSession(session) {
     await this.sql.run(
       `INSERT INTO ailp_sessions(session_id,session_grant_ref,ai_identity_id,identity_epoch,runtime_id,runtime_key_thumbprint,
-         actor_binding_ref,actor_id,session_class,origin,state,issued_at,expires_at,idle_expires_at,revocation_reason)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+         runtime_certificate_ref,actor_binding_ref,actor_id,session_class,origin,state,issued_at,expires_at,idle_expires_at,revocation_reason)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         session.sessionId, session.sessionGrantRef, session.aiIdentityId, session.identityEpoch,
-        session.runtimeId, session.runtimeKeyThumbprint, session.actorBindingRef ?? null, session.actorId ?? null,
+        session.runtimeId, session.runtimeKeyThumbprint, session.runtimeCertificateRef,
+        session.actorBindingRef ?? null, session.actorId ?? null,
         session.sessionClass, session.origin, session.state, session.issuedAt, session.expiresAt,
         session.idleExpiresAt ?? null, session.revocationReason ?? null
       ]

@@ -52,7 +52,31 @@ function buildAiClient({ aiIdentityId, runtimeId }) {
     { keyId: 'key:operational:test' }
   );
 
-  return { aiIdentityId, runtimeId, identityRoot, runtimeCertificate, runtimePrivateJwk: runtime.privateJwk };
+  return { aiIdentityId, runtimeId, identityRoot, runtimeCertificate, runtimePrivateJwk: runtime.privateJwk, operationalPrivateJwk: operational.privateJwk };
+}
+
+// Mints a SECOND runtime_certificate for the SAME runtime_id, reusing the
+// SAME operational key (as if only the operational key -- not the runtime
+// key -- had been compromised, or simply reused). Returns a client-shaped
+// object usable with buildChallengeRequest/buildLoginProof for a fresh
+// authenticate cycle under the same runtime_id but a different runtime key.
+function mintAdditionalRuntimeCertificate(baseClient) {
+  const newRuntime = throwawayJwkPair();
+  const spawnedAt = new Date().toISOString();
+  const runtimeCertificate = signDocument(
+    {
+      schema_version: 'ailp/0.1', object_type: 'runtime_certificate', runtime_id: baseClient.runtimeId,
+      ai_identity_id: baseClient.aiIdentityId, identity_epoch: 1,
+      runtime_verification_method: { id: 'key:runtime:test', public_jwk: newRuntime.publicJwk },
+      issuer_verification_method_ref: 'key:operational:test', spawned_at: spawnedAt,
+      expires_at: new Date(Date.parse(spawnedAt) + 600000).toISOString(),
+      runtime_class: 'test', allowed_protocols: ['ailp/0.1'], max_session_lifetime_seconds: 600,
+      parent_runtime_id: null, delegation_depth: null, claims: {}
+    },
+    baseClient.operationalPrivateJwk,
+    { keyId: 'key:operational:test' }
+  );
+  return { ...baseClient, runtimeCertificate, runtimePrivateJwk: newRuntime.privateJwk };
 }
 
 function buildChallengeRequest(client, { requestedActorId = null, requestedSessionProfile = 'identity_only' } = {}) {
@@ -216,6 +240,55 @@ test('same challenge + a DIFFERENT proof is rejected (cannot mint a second sessi
     const second = await callDispatch(runtime, { method: 'POST', path: '/ailp/v1/authenticate', body: body2 });
     assert.equal(second.status, 400);
     assert.equal(second.body.error, 'AILP_CHALLENGE_PROOF_MISMATCH');
+  } finally { db.close(); }
+});
+
+test('a session is pinned to the exact runtime_certificate verified at its own issuance, not "latest cert for this runtime_id" -- regression test for a real key-tier escalation found and fixed during this build', async () => {
+  const { db, runtime } = await makeRuntime();
+  try {
+    const client = buildAiClient({ aiIdentityId: 'ai:cert-pin-test', runtimeId: 'runtime:shared' });
+    await callDispatch(runtime, { method: 'POST', path: '/ailp/v1/identities/register', body: client.identityRoot });
+
+    // First authenticate cycle, with runtime key #1.
+    const req1 = buildChallengeRequest(client);
+    const challenge1 = (await callDispatch(runtime, { method: 'POST', path: '/ailp/v1/challenges', body: req1 })).body;
+    const proof1 = buildLoginProof(client, challenge1, req1);
+    const auth1 = await callDispatch(runtime, {
+      method: 'POST', path: '/ailp/v1/authenticate',
+      body: { challenge_request: req1, login_proof: proof1, runtime_certificate: client.runtimeCertificate }
+    });
+    assert.equal(auth1.status, 200);
+    const victimSessionId = auth1.body.session_grant.session_id;
+
+    // A second authenticate cycle for the SAME runtime_id, but with a brand
+    // new runtime keypair -- as if only the operational key were compromised
+    // (or simply reused) and a new runtime_certificate got registered under
+    // the same runtime_id. This must not be able to touch the FIRST session.
+    const attacker = mintAdditionalRuntimeCertificate(client);
+    const req2 = buildChallengeRequest(attacker);
+    const challenge2 = (await callDispatch(runtime, { method: 'POST', path: '/ailp/v1/challenges', body: req2 })).body;
+    const proof2 = buildLoginProof(attacker, challenge2, req2);
+    const auth2 = await callDispatch(runtime, {
+      method: 'POST', path: '/ailp/v1/authenticate',
+      body: { challenge_request: req2, login_proof: proof2, runtime_certificate: attacker.runtimeCertificate }
+    });
+    assert.equal(auth2.status, 200);
+
+    // The attacker forges a request CLAIMING the victim's session_id, but
+    // signs it with their own (newer) runtime key. Before the fix, the
+    // victim session's runtime certificate lookup would resolve to
+    // "whichever cert is newest for runtime:shared" -- the attacker's -- and
+    // this signature would verify. After the fix, the victim session is
+    // pinned to runtime key #1 and this must be rejected.
+    const forgedHeaders = signedRequestHeaders(attacker, { method: 'GET', targetUri: ORIGIN + '/ailp/v1/session', sessionId: victimSessionId, bodyBuffer: Buffer.alloc(0) });
+    const forgedRes = await callDispatch(runtime, { method: 'GET', path: '/ailp/v1/session', headers: forgedHeaders });
+    assert.equal(forgedRes.status, 400);
+    assert.equal(forgedRes.body.error, 'REQUEST_SIGNATURE_INVALID');
+
+    // The legitimate victim's own key must still work against their own session.
+    const legitHeaders = signedRequestHeaders(client, { method: 'GET', targetUri: ORIGIN + '/ailp/v1/session', sessionId: victimSessionId, bodyBuffer: Buffer.alloc(0) });
+    const legitRes = await callDispatch(runtime, { method: 'GET', path: '/ailp/v1/session', headers: legitHeaders });
+    assert.equal(legitRes.status, 200);
   } finally { db.close(); }
 });
 

@@ -82,7 +82,10 @@ async function authenticateSessionRequest({ request, url, bodyBuffer, store }) {
   if (Date.parse(session.expires_at) < Date.now()) throw new AILPError('SESSION_EXPIRED');
   if (session.origin !== url.origin) throw new AILPError('SESSION_ORIGIN_MISMATCH');
 
-  const runtimeCertRow = await store.getLatestObjectByTypeAndSubject('runtime_certificate', session.runtime_id);
+  // Fetch by the exact digest pinned at THIS session's issuance -- never by
+  // "latest certificate for this runtime_id" (see the comment on
+  // AilpStore.putSession for why that would be a real key-tier escalation).
+  const runtimeCertRow = await store.getObject(session.runtime_certificate_ref);
   if (!runtimeCertRow) throw new AILPError('RUNTIME_CERTIFICATE_NOT_FOUND');
   const runtimeCertificate = JSON.parse(runtimeCertRow.canonical_json);
 
@@ -306,6 +309,7 @@ async function handleAuthenticate({ parsed, url, rpKey, store }) {
     identityEpoch: 1,
     runtimeId: verifyResult.runtimeId,
     runtimeKeyThumbprint,
+    runtimeCertificateRef: digestDocument(runtimeCertificate),
     sessionClass: 'identity_only',
     origin: challenge.origin,
     state: 'active',
@@ -429,6 +433,7 @@ async function handleActorBindingsBootstrap({ parsed, session, rpKey, store }) {
     identityEpoch: session.identity_epoch,
     runtimeId: session.runtime_id,
     runtimeKeyThumbprint: session.runtime_key_thumbprint,
+    runtimeCertificateRef: session.runtime_certificate_ref,
     actorBindingRef: digestDocument(actorBindingReceipt),
     actorId: requestedActorId,
     sessionClass: 'actor_bound',

@@ -108,7 +108,7 @@ test('request replay guard: same (session_id, request_id) can only be recorded o
   try {
     await store.putSession({
       sessionId: 'session:1', sessionGrantRef: 'sha256:grant', aiIdentityId: 'ai:x', identityEpoch: 1,
-      runtimeId: 'runtime:1', runtimeKeyThumbprint: 'sha256:thumb', sessionClass: 'identity_only',
+      runtimeId: 'runtime:1', runtimeKeyThumbprint: 'sha256:thumb', runtimeCertificateRef: 'sha256:cert', sessionClass: 'identity_only',
       origin: 'https://trellis.aispaces.app', state: 'active', issuedAt: '2026-09-09T00:00:00Z', expiresAt: '2026-09-09T00:10:00Z'
     });
     const first = await store.recordRequestOnce('session:1', 'request:1', 1788944490);
@@ -125,7 +125,7 @@ test('session revoke stops further use: revoking twice does not re-revoke and re
   try {
     await store.putSession({
       sessionId: 'session:2', sessionGrantRef: 'sha256:grant2', aiIdentityId: 'ai:x', identityEpoch: 1,
-      runtimeId: 'runtime:1', runtimeKeyThumbprint: 'sha256:thumb', sessionClass: 'identity_only',
+      runtimeId: 'runtime:1', runtimeKeyThumbprint: 'sha256:thumb', runtimeCertificateRef: 'sha256:cert', sessionClass: 'identity_only',
       origin: 'https://trellis.aispaces.app', state: 'active', issuedAt: '2026-09-09T00:00:00Z', expiresAt: '2026-09-09T00:10:00Z'
     });
     const firstRevoke = await store.revokeSession('session:2', 'user_requested');
