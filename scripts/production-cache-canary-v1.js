@@ -222,7 +222,7 @@ async function observeProductionCacheCanaryOrigin(origin, { fetchImpl = globalTh
   const publicationHtml = await requestText(`${origin}/publications/${encodedId}`, fetchImpl);
   const publicationApi = await requestJson(`${origin}/api/publications/${encodedId}`, fetchImpl);
 
-  const homeHasId = home.body.includes(C.publication_id);
+  const homeHasId = home.body.includes(encodedId);
   const homeHasBody = home.body.includes(C.body);
   const homeState = stateFromBoolean(
     home.status === 200 && homeHasId && homeHasBody,

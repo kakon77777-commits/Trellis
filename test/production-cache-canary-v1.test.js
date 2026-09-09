@@ -87,7 +87,7 @@ function makeProductionFetch({ eventStore, clock, propagationDelayMs = 250, regr
     }
     if (url.pathname === '/') {
       const html = publicState === 'active'
-        ? `<html><body>${C.publication_id}\n${C.body}</body></html>`
+        ? `<html><body><a href="/publications/${encodeURIComponent(C.publication_id)}">${C.body}</a></body></html>`
         : '<html><body>Public Trellis</body></html>';
       return makeResponse(html, { contentType: 'text/html; charset=utf-8' });
     }
