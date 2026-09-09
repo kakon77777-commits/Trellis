@@ -292,6 +292,29 @@ test('a session is pinned to the exact runtime_certificate verified at its own i
   } finally { db.close(); }
 });
 
+test('an AILP path with no/invalid request proof is denied outright, never silently served as anonymous', async () => {
+  const { db, runtime } = await makeRuntime();
+  try {
+    // No ailp-session/ailp-request-id/ailp-request-proof headers at all.
+    const bare = await callDispatch(runtime, { method: 'GET', path: '/ailp/v1/session' });
+    assert.equal(bare.status, 400);
+    assert.equal(bare.body.error, 'REQUEST_PROOF_MISSING');
+
+    // A garbage proof header, session id that doesn't exist.
+    const garbage = await callDispatch(runtime, {
+      method: 'GET', path: '/ailp/v1/session',
+      headers: { 'ailp-session': 'session:does-not-exist', 'ailp-request-id': 'request:1', 'ailp-request-proof': 'not-json' }
+    });
+    assert.equal(garbage.status, 400);
+    assert.equal(garbage.body.error, 'REQUEST_PROOF_MALFORMED');
+
+    // Neither response is 200/404-as-if-anonymous -- this path simply does
+    // not exist for an unauthenticated caller, by construction: ailpRoutes
+    // always resolves it to a thrown AILPError, and dispatchRequest returns
+    // that response directly without ever reaching the old GET routeHandlers.
+  } finally { db.close(); }
+});
+
 test('raw X-Actor-ID header is still rejected on an AILP path (W6 applies unconditionally, login does not create a shortcut)', async () => {
   const { db, runtime } = await makeRuntime();
   try {

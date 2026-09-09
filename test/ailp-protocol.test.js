@@ -64,6 +64,22 @@ test('verifyLoginProof rejects a wrong origin (cross-origin session binding, Sol
   );
 });
 
+test('verifyLoginProof rejects a wrong audience (a proof scoped to a different relying party is not valid here)', () => {
+  assert.throws(
+    () => verifyLoginProof({
+      challenge: fixture.challenge,
+      challengeRequest: fixture.challenge_request,
+      proof: fixture.login_proof,
+      runtimeCertificate: fixture.runtime_certificate,
+      operationalPublicJwk: fixture.identity_root.operational_verification_methods[0].public_jwk,
+      at: AT,
+      expectedOrigin: 'https://trellis.aispaces.app',
+      expectedAudience: 'some-other-relying-party'
+    }),
+    (e) => e instanceof AILPError && e.code === 'CHALLENGE_AUDIENCE_MISMATCH'
+  );
+});
+
 test('verifyLoginProof rejects a challenge-request Actor substitution', () => {
   const tamperedRequest = { ...fixture.challenge_request, requested_actor_id: 'actor:attacker' };
   assert.throws(
@@ -103,6 +119,22 @@ test('deriveAuthenticatedRequestContext produces the exact shape from the implem
   assert.equal(ctx.principal.principal_actor_id, 'actor:reference');
   assert.deepEqual(ctx.viewerContext, { viewer_actor_id: 'actor:reference', represents_actor_ids: [] });
   assert.equal(ctx.credentialRefs.length, 4);
+});
+
+test('deriveAuthenticatedRequestContext for an identity_only session never carries an actor identity (principal_actor_id stays null, viewerContext stays {})', () => {
+  const identityOnlySessionGrant = { ...fixture.session_grant, session_class: 'identity_only', actor_id: null, actor_binding_receipt_ref: null };
+  const ctx = deriveAuthenticatedRequestContext({
+    authenticationReceipt: fixture.authentication_receipt,
+    recognitionReceipt: fixture.recognition_receipt,
+    actorBindingReceipt: null,
+    sessionGrant: identityOnlySessionGrant
+  });
+  assert.equal(ctx.principal.principal_actor_id, null);
+  assert.deepEqual(ctx.viewerContext, {});
+  assert.equal(ctx.actorBinding, null);
+  // Authority's own principal_actor_id === author_actor_id check (unmodified
+  // by AILP) therefore denies ANY actor-owned write for this context: null
+  // can never equal a real actor id.
 });
 
 test('deriveAuthenticatedRequestContext throws ACTOR_BINDING_NOT_ACTIVE for an actor_bound session with no active binding (never silently downgrades to anonymous)', () => {
@@ -181,6 +213,23 @@ test('verifyRequestProof rejects a request-target substitution (signature base n
       proof: fixture.request_proof,
       method: fixture.request.method,
       targetUri: 'https://trellis.aispaces.app/api/publications/attacker-target',
+      sessionId: fixture.session_grant.session_id,
+      requestId: fixture.request.request_id,
+      contentType: fixture.request.content_type,
+      body: Buffer.from(fixture.request.body_utf8, 'utf8'),
+      publicJwk: fixture.runtime_certificate.runtime_verification_method.public_jwk,
+      at: fixture.request.verified_at_unix
+    }),
+    (e) => e instanceof AILPError && e.code === 'REQUEST_SIGNATURE_INVALID'
+  );
+});
+
+test('verifyRequestProof rejects a request-method substitution (a GET-signed proof replayed as POST)', () => {
+  assert.throws(
+    () => verifyRequestProof({
+      proof: fixture.request_proof,
+      method: 'GET',
+      targetUri: fixture.request.target_uri,
       sessionId: fixture.session_grant.session_id,
       requestId: fixture.request.request_id,
       contentType: fixture.request.content_type,
