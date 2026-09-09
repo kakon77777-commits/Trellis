@@ -16,14 +16,10 @@ const ROOT = path.join(__dirname, '..');
 
 test('one ordered db/migrations source is loaded for both SQLite and D1 tooling', () => {
   const migrations = loadMigrations();
-  assert.deepEqual(migrations.map(m => m.name), [
-    '001_foundation.sql',
-    '002_actor_profile.sql',
-    '003_notification.sql',
-    '004_preference.sql',
-    '005_consumption.sql',
-    '006_storage_runtime.sql'
-  ]);
+  const onDisk = fs.readdirSync(path.join(ROOT, 'db', 'migrations')).filter(f => f.endsWith('.sql')).sort();
+  assert.ok(onDisk.length > 0);
+  assert.ok(/^\d{3}_/.test(onDisk[0]), 'migration files must use a zero-padded 3-digit sequence prefix');
+  assert.deepEqual(migrations.map(m => m.name), onDisk, 'loadMigrations() must load every db/migrations/*.sql file, in filename-sorted order');
   assert.ok(migrations.every(m => m.path.startsWith(path.join(ROOT, 'db', 'migrations'))));
   assert.ok(migrations.every(m => typeof m.sql === 'string' && m.sql.trim().length > 0));
 });
