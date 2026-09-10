@@ -177,6 +177,22 @@ async function runAilpWorkerIntegration({ databaseId, evidencePath = DEFAULT_EVI
     assert.equal(bootstrap.body.session_grant.session_class, 'actor_bound');
     const actorSessionId = bootstrap.body.session_grant.session_id;
 
+    // The first real authenticated domain write, over real HTTP against the
+    // real production Worker entry point and real local D1 -- and read back
+    // through the SAME unmodified public GET route every anonymous visitor
+    // uses, proving the write is genuinely visible, not just accepted.
+    const publishBody = { author_actor_id: 'actor:local-worker-integration', publication_type: 'note', body: 'local wrangler-dev integration publication' };
+    const publishBuffer = Buffer.from(JSON.stringify(publishBody), 'utf8');
+    const publishHeaders = signedRequestHeaders(client, { method: 'POST', targetUri: origin + '/api/publications', sessionId: actorSessionId, bodyBuffer: publishBuffer });
+    const publish = await callReal(origin, { method: 'POST', path: '/api/publications', headers: publishHeaders, body: publishBody });
+    assert.equal(publish.status, 201, 'publication.create must succeed over real HTTP');
+    const publicationId = publish.body.publication_id;
+    assert.ok(publicationId);
+
+    const readBack = await callReal(origin, { method: 'GET', path: `/api/publications/${encodeURIComponent(publicationId)}` });
+    assert.equal(readBack.status, 200, 'the new publication must be visible through the pre-existing public GET route, not just accepted at write time');
+    assert.equal(readBack.body.author_actor_id, 'actor:local-worker-integration');
+
     const revokeHeaders = signedRequestHeaders(client, { method: 'POST', targetUri: origin + '/ailp/v1/session/revoke', sessionId: actorSessionId, bodyBuffer: Buffer.alloc(0) });
     const revoke = await callReal(origin, { method: 'POST', path: '/ailp/v1/session/revoke', headers: revokeHeaders });
     assert.equal(revoke.status, 200);
@@ -232,6 +248,9 @@ async function runAilpWorkerIntegration({ databaseId, evidencePath = DEFAULT_EVI
         session_check_status: sessionCheck.status,
         actor_bootstrap_status: bootstrap.status,
         session_class_after_bootstrap: bootstrap.body.session_grant.session_class,
+        publication_create_status: publish.status,
+        publication_id: publicationId,
+        publication_read_back_status: readBack.status,
         revoke_status: revoke.status
       },
       wrangler: { database_name: 'evemisslab-trellis', binding: 'DB', config: path.relative(ROOT, INTEGRATION_CONFIG), persist_dir: path.relative(ROOT, PERSIST_DIR) }

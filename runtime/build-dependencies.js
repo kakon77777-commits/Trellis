@@ -29,7 +29,10 @@ function buildHttpRuntime({ sql, eventStore, disclosurePolicy, ailpRpKey, ailpAl
   // local/integration testing (see scripts/run-ailp-worker-integration-local.js),
   // never in real production config.
   const ailpRoutes = ailpRpKey
-    ? createAilpRoutes({ store: new AilpStore(sql), rpKey: ailpRpKey, ...(ailpAllowedOrigins ? { allowedOrigins: ailpAllowedOrigins } : {}) })
+    ? createAilpRoutes({
+        store: new AilpStore(sql), rpKey: ailpRpKey, sql, eventStore: dependencies.eventStore,
+        ...(ailpAllowedOrigins ? { allowedOrigins: ailpAllowedOrigins } : {})
+      })
     : undefined;
   return Object.freeze({ ...dependencies, services, routeHandlers, ailpRoutes });
 }

@@ -1,6 +1,6 @@
 {
   "schema": "trellis-ailp-v1-worker-integration-local",
-  "generated_at": "2026-09-09T16:33:40.696Z",
+  "generated_at": "2026-09-10T06:01:05.330Z",
   "real_http": true,
   "real_local_d1": true,
   "worker_process_restart_persistence": {
@@ -21,6 +21,9 @@
     "session_check_status": 200,
     "actor_bootstrap_status": 201,
     "session_class_after_bootstrap": "actor_bound",
+    "publication_create_status": 201,
+    "publication_id": "pub:56de1fe54d8d991fd0412b64",
+    "publication_read_back_status": 200,
     "revoke_status": 200
   },
   "wrangler": {

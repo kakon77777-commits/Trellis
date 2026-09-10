@@ -36,6 +36,27 @@ async function callDispatch(runtime, { method, path, headers = {}, body }) {
   return { status: response.status, body: parsed };
 }
 
+// Shared happy-path: register -> challenge -> authenticate -> actor bootstrap.
+// Returns the actor-bound session id plus the client, for tests that need to
+// go on and sign further authenticated requests (e.g. publication.create).
+async function bootstrapActorBoundSession(runtime, { aiIdentityId, runtimeId, actorId }) {
+  const client = buildAiClient({ aiIdentityId, runtimeId });
+  await callDispatch(runtime, { method: 'POST', path: '/ailp/v1/identities/register', body: client.identityRoot });
+  const challengeRequest = buildChallengeRequest(client);
+  const challenge = (await callDispatch(runtime, { method: 'POST', path: '/ailp/v1/challenges', body: challengeRequest })).body;
+  const loginProof = buildLoginProof(client, challenge, challengeRequest);
+  const authRes = await callDispatch(runtime, {
+    method: 'POST', path: '/ailp/v1/authenticate',
+    body: { challenge_request: challengeRequest, login_proof: loginProof, runtime_certificate: client.runtimeCertificate }
+  });
+  const identitySessionId = authRes.body.session_grant.session_id;
+  const bootstrapBody = { requested_actor_id: actorId };
+  const bootstrapBuffer = Buffer.from(JSON.stringify(bootstrapBody), 'utf8');
+  const bootstrapHeaders = signedRequestHeaders(client, { method: 'POST', targetUri: ORIGIN + '/ailp/v1/actor-bindings/bootstrap', sessionId: identitySessionId, bodyBuffer: bootstrapBuffer });
+  const bootstrapRes = await callDispatch(runtime, { method: 'POST', path: '/ailp/v1/actor-bindings/bootstrap', headers: bootstrapHeaders, body: bootstrapBody });
+  return { client, identitySessionId, bootstrapRes };
+}
+
 test('discovery endpoint is public and exposes the RP verification method', async () => {
   const { db, runtime } = await makeRuntime();
   try {
@@ -263,5 +284,111 @@ test('a session bound to actor A cannot be used to author a publication as actor
       author_actor_id: 'actor:someone-else-entirely'
     });
     assert.equal(decision.decision, 'deny');
+  } finally { db.close(); }
+});
+
+test('actor-bindings/bootstrap actually registers a real Trellis actor entity, not just an AILP-side record', async () => {
+  const { db, runtime } = await makeRuntime();
+  try {
+    const { bootstrapRes } = await bootstrapActorBoundSession(runtime, { aiIdentityId: 'ai:entity-reg-test', runtimeId: 'runtime:entity-reg-test', actorId: 'actor:entity-reg-test' });
+    assert.equal(bootstrapRes.status, 201);
+
+    const { foldEntity } = require('../entity/fold');
+    const entityState = foldEntity(await runtime.eventStore.readStream('entity', 'actor:entity-reg-test'));
+    assert.equal(entityState.lifecycle, 'active');
+    assert.equal(entityState.entity_kind, 'actor');
+    assert.equal(entityState.actor_capable, true);
+  } finally { db.close(); }
+});
+
+test('bootstrapping an actor_id that already exists is rejected, not silently claimed (Section 6J is out of scope for this vertical slice)', async () => {
+  const { db, runtime } = await makeRuntime();
+  try {
+    const first = await bootstrapActorBoundSession(runtime, { aiIdentityId: 'ai:claim-test-1', runtimeId: 'runtime:claim-test-1', actorId: 'actor:claim-test-shared' });
+    assert.equal(first.bootstrapRes.status, 201);
+
+    // A second, entirely different AI identity tries to bootstrap the SAME actor_id.
+    const client2 = buildAiClient({ aiIdentityId: 'ai:claim-test-2', runtimeId: 'runtime:claim-test-2' });
+    await callDispatch(runtime, { method: 'POST', path: '/ailp/v1/identities/register', body: client2.identityRoot });
+    const req2 = buildChallengeRequest(client2);
+    const challenge2 = (await callDispatch(runtime, { method: 'POST', path: '/ailp/v1/challenges', body: req2 })).body;
+    const proof2 = buildLoginProof(client2, challenge2, req2);
+    const auth2 = await callDispatch(runtime, {
+      method: 'POST', path: '/ailp/v1/authenticate',
+      body: { challenge_request: req2, login_proof: proof2, runtime_certificate: client2.runtimeCertificate }
+    });
+    const sessionId2 = auth2.body.session_grant.session_id;
+    const bootstrapBody2 = { requested_actor_id: 'actor:claim-test-shared' };
+    const bootstrapBuffer2 = Buffer.from(JSON.stringify(bootstrapBody2), 'utf8');
+    const bootstrapHeaders2 = signedRequestHeaders(client2, { method: 'POST', targetUri: ORIGIN + '/ailp/v1/actor-bindings/bootstrap', sessionId: sessionId2, bodyBuffer: bootstrapBuffer2 });
+    const second = await callDispatch(runtime, { method: 'POST', path: '/ailp/v1/actor-bindings/bootstrap', headers: bootstrapHeaders2, body: bootstrapBody2 });
+    assert.equal(second.status, 400);
+    assert.equal(second.body.error, 'EXISTING_ACTOR_CLAIM_NOT_SUPPORTED');
+  } finally { db.close(); }
+});
+
+test('the full real chain closes: AI-authenticated publication.create is visible through the pre-existing, unmodified public GET route', async () => {
+  const { db, runtime } = await makeRuntime();
+  try {
+    const { client, bootstrapRes } = await bootstrapActorBoundSession(runtime, { aiIdentityId: 'ai:publish-test', runtimeId: 'runtime:publish-test', actorId: 'actor:publish-test' });
+    const actorSessionId = bootstrapRes.body.session_grant.session_id;
+
+    const publishBody = { author_actor_id: 'actor:publish-test', publication_type: 'note', body: 'first real AI-authenticated publication' };
+    const publishBuffer = Buffer.from(JSON.stringify(publishBody), 'utf8');
+    const publishHeaders = signedRequestHeaders(client, { method: 'POST', targetUri: ORIGIN + '/api/publications', sessionId: actorSessionId, bodyBuffer: publishBuffer });
+    const publishRes = await callDispatch(runtime, { method: 'POST', path: '/api/publications', headers: publishHeaders, body: publishBody });
+    assert.equal(publishRes.status, 201);
+    const publicationId = publishRes.body.publication_id;
+    assert.ok(publicationId);
+
+    // Read it back through the SAME public GET route every anonymous visitor
+    // uses -- proves the write actually reached the real domain/projection
+    // layer, not just AILP's own bookkeeping.
+    const readBack = await callDispatch(runtime, { method: 'GET', path: `/api/publications/${encodeURIComponent(publicationId)}` });
+    assert.equal(readBack.status, 200);
+    assert.equal(readBack.body.author_actor_id ?? readBack.body.publication?.author_actor_id, 'actor:publish-test');
+  } finally { db.close(); }
+});
+
+test('an identity_only session cannot author a publication (no actor context to author with)', async () => {
+  const { db, runtime } = await makeRuntime();
+  try {
+    const client = buildAiClient({ aiIdentityId: 'ai:identity-only-publish-test', runtimeId: 'runtime:identity-only-publish-test' });
+    await callDispatch(runtime, { method: 'POST', path: '/ailp/v1/identities/register', body: client.identityRoot });
+    const challengeRequest = buildChallengeRequest(client);
+    const challenge = (await callDispatch(runtime, { method: 'POST', path: '/ailp/v1/challenges', body: challengeRequest })).body;
+    const loginProof = buildLoginProof(client, challenge, challengeRequest);
+    const authRes = await callDispatch(runtime, {
+      method: 'POST', path: '/ailp/v1/authenticate',
+      body: { challenge_request: challengeRequest, login_proof: loginProof, runtime_certificate: client.runtimeCertificate }
+    });
+    const identityOnlySessionId = authRes.body.session_grant.session_id;
+
+    const publishBody = { author_actor_id: 'actor:should-not-be-authored', publication_type: 'note', body: 'should never be created' };
+    const publishBuffer = Buffer.from(JSON.stringify(publishBody), 'utf8');
+    const publishHeaders = signedRequestHeaders(client, { method: 'POST', targetUri: ORIGIN + '/api/publications', sessionId: identityOnlySessionId, bodyBuffer: publishBuffer });
+    const publishRes = await callDispatch(runtime, { method: 'POST', path: '/api/publications', headers: publishHeaders, body: publishBody });
+    assert.equal(publishRes.status, 400);
+    assert.equal(publishRes.body.error, 'IDENTITY_ONLY_SESSION_CANNOT_AUTHOR');
+  } finally { db.close(); }
+});
+
+test('a session bound to actor A is denied by real Authority (403) when its HTTP publication.create names actor B as author', async () => {
+  const { db, runtime } = await makeRuntime();
+  try {
+    const { client, bootstrapRes } = await bootstrapActorBoundSession(runtime, { aiIdentityId: 'ai:forge-test-a', runtimeId: 'runtime:forge-test-a', actorId: 'actor:forge-test-a' });
+    const actorSessionId = bootstrapRes.body.session_grant.session_id;
+    // actor:forge-test-b must be a REAL, active, pre-existing entity here --
+    // otherwise createPublication's own requireActiveActor check would
+    // reject it first (a different, also-correct rejection) and this test
+    // wouldn't actually be isolating the Authority check it's named for.
+    await bootstrapActorBoundSession(runtime, { aiIdentityId: 'ai:forge-test-b', runtimeId: 'runtime:forge-test-b', actorId: 'actor:forge-test-b' });
+
+    const forgedBody = { author_actor_id: 'actor:forge-test-b', publication_type: 'note', body: 'forged authorship attempt' };
+    const forgedBuffer = Buffer.from(JSON.stringify(forgedBody), 'utf8');
+    const forgedHeaders = signedRequestHeaders(client, { method: 'POST', targetUri: ORIGIN + '/api/publications', sessionId: actorSessionId, bodyBuffer: forgedBuffer });
+    const forgedRes = await callDispatch(runtime, { method: 'POST', path: '/api/publications', headers: forgedHeaders, body: forgedBody });
+    assert.equal(forgedRes.status, 403);
+    assert.equal(forgedRes.body.error, 'POLICY_DENIED');
   } finally { db.close(); }
 });

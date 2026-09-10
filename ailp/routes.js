@@ -10,8 +10,14 @@ const {
   issueRecognitionReceipt,
   issueActorBindingReceipt,
   issueSessionGrant,
+  deriveAuthenticatedRequestContext,
   verifyRequestProof
 } = require('./protocol');
+const { registerActor } = require('../entity/service');
+const { foldEntity } = require('../entity/fold');
+const { evaluateAuthority } = require('../authority/policy');
+const { createPublication } = require('../publication/service');
+const { projectPublicationStream } = require('../publication/projector');
 
 // The two real Trellis production origins. They share one relying-party
 // identity and audience, but sessions are exact-origin bound: a session
@@ -34,15 +40,20 @@ function isoPlusSeconds(iso, seconds) {
 function json(status, value) {
   return { status, headers: { 'content-type': 'application/json; charset=utf-8' }, body: JSON.stringify(value) };
 }
-function errorBody(error) {
-  const code = error instanceof AILPError ? error.code : 'AILP_INTERNAL_ERROR';
-  return { error: code };
-}
 // AILP errors are the caller's fault (bad proof, expired challenge, unknown
-// identity, etc.) -- 400. Anything else is our bug, not theirs -- 500, and
-// deliberately does not leak the underlying message.
+// identity, etc.) -- 400. Domain errors from the pre-existing command
+// services (PolicyDeniedError, InvalidTransitionError,
+// IdempotencyConflictError -- all core/errors.js classes with a stable
+// `.code`) are equally the caller's fault and equally expected outcomes,
+// not our bug -- 403 for an Authority denial specifically (that's the
+// concrete evidence Sol asked for that Authentication != Authority still
+// holds with AILP wired in), 409 for the rest. Anything else really is our
+// bug, not theirs -- 500, and deliberately does not leak the underlying
+// message.
 function ailpErrorResponse(error) {
-  if (error instanceof AILPError) return json(400, errorBody(error));
+  if (error instanceof AILPError) return json(400, { error: error.code });
+  if (error && error.code === 'POLICY_DENIED') return json(403, { error: error.code });
+  if (error && typeof error.code === 'string') return json(409, { error: error.code });
   return json(500, { error: 'AILP_INTERNAL_ERROR' });
 }
 
@@ -106,6 +117,35 @@ async function authenticateSessionRequest({ request, url, bodyBuffer, store }) {
   if (!firstUse) throw new AILPError('REQUEST_REPLAYED');
 
   return session;
+}
+
+// Reconstructs the full AuthenticatedRequestContext for an already-verified
+// session by following its own reference chain through the immutable
+// ailp_objects evidence store (session_grant -> authentication_receipt /
+// recognition_receipt, and the session row's own actor_binding_ref if any).
+// Needed by any domain-write route (e.g. publication.create), not just the
+// lightweight session-validity check authenticateSessionRequest does.
+async function deriveFullContextForSession(session, store) {
+  const sessionGrantRow = await store.getObject(session.session_grant_ref);
+  if (!sessionGrantRow) throw new AILPError('SESSION_GRANT_EVIDENCE_MISSING');
+  const sessionGrant = JSON.parse(sessionGrantRow.canonical_json);
+
+  const authReceiptRow = await store.getObject(sessionGrant.authentication_receipt_ref);
+  if (!authReceiptRow) throw new AILPError('AUTHENTICATION_RECEIPT_EVIDENCE_MISSING');
+  const authenticationReceipt = JSON.parse(authReceiptRow.canonical_json);
+
+  const recognitionReceiptRow = await store.getObject(sessionGrant.recognition_receipt_ref);
+  if (!recognitionReceiptRow) throw new AILPError('RECOGNITION_RECEIPT_EVIDENCE_MISSING');
+  const recognitionReceipt = JSON.parse(recognitionReceiptRow.canonical_json);
+
+  let actorBindingReceipt = null;
+  if (session.actor_binding_ref) {
+    const actorBindingRow = await store.getObject(session.actor_binding_ref);
+    if (!actorBindingRow) throw new AILPError('ACTOR_BINDING_EVIDENCE_MISSING');
+    actorBindingReceipt = JSON.parse(actorBindingRow.canonical_json);
+  }
+
+  return deriveAuthenticatedRequestContext({ authenticationReceipt, recognitionReceipt, actorBindingReceipt, sessionGrant });
 }
 
 // -- GET /.well-known/ailp --
@@ -356,7 +396,7 @@ async function handleRevokeSession({ session, store }) {
 
 // -- POST /ailp/v1/actor-bindings/bootstrap --
 
-async function handleActorBindingsBootstrap({ parsed, session, rpKey, store }) {
+async function handleActorBindingsBootstrap({ parsed, session, rpKey, store, eventStore }) {
   if (session.session_class === 'recovery_only') throw new AILPError('RECOVERY_SESSION_CANNOT_BIND_ACTOR');
   const requestedActorId = parsed.requested_actor_id;
   const bindingKind = parsed.binding_kind || 'self_representation';
@@ -368,6 +408,28 @@ async function handleActorBindingsBootstrap({ parsed, session, rpKey, store }) {
   const sessionGrantRow = await store.getObject(session.session_grant_ref);
   if (!sessionGrantRow) throw new AILPError('SESSION_GRANT_EVIDENCE_MISSING');
   const priorSessionGrant = JSON.parse(sessionGrantRow.canonical_json);
+
+  // "Registration is observation, not issuance" for the AI identity itself,
+  // but a Trellis Actor is genuinely a Trellis-side construct that must
+  // exist before anything can author as it (publication.create requires an
+  // active actor entity). Sol's Section 6G sequence: recognition accepted ->
+  // requested Actor ID available -> CREATE TRELLIS ACTOR -> issue
+  // ActorBindingReceipt. This first vertical slice only handles the "brand
+  // new actor" case (Section 6H); an actor_id that already exists is Section
+  // 6J's "Existing Actor Claim" territory, deliberately out of scope here --
+  // reject cleanly rather than silently allow a claim/takeover.
+  const existing = foldEntity(await eventStore.readStream('entity', requestedActorId));
+  if (existing.lifecycle !== 'nonexistent') throw new AILPError('EXISTING_ACTOR_CLAIM_NOT_SUPPORTED');
+  const registration = await registerActor(
+    {
+      command_id: `cmd:${randomUUID()}`,
+      idempotency_key: `entity-register:${requestedActorId}`,
+      principal_id: `principal:ailp-session:${session.session_id}`,
+      entity_id: requestedActorId,
+      display_name: parsed.display_name ?? null
+    },
+    { eventStore, authorize: evaluateAuthority }
+  );
 
   const at = nowIso();
   const actorBindingReceipt = rpKey.sign(issueActorBindingReceipt({
@@ -450,12 +512,67 @@ async function handleActorBindingsBootstrap({ parsed, session, rpKey, store }) {
   return json(201, { actor_binding_receipt: actorBindingReceipt, session_grant: actorBoundSessionGrant });
 }
 
+// -- POST /api/publications (the first real authenticated domain write) --
+// publication/service.js itself never imports AILP -- this route is the
+// adapter Sol's structural-acceptance requirement calls for: it derives the
+// AuthenticatedRequestContext here, at the boundary, and hands
+// createPublication exactly the plain {principalActorId, capabilityGrants,
+// credentialRefs, eventStore, db} shape it already expected before AILP
+// existed. An identity_only session is rejected here explicitly (clearer
+// error than letting it fall through to Authority's own denial), but the
+// real security invariant is unchanged: Authority's principal_actor_id ===
+// author_actor_id check is what actually stops a forged author_actor_id,
+// exactly as it already did for every other caller.
+
+async function handlePublicationCreate({ parsed, session, store, eventStore, sql }) {
+  const context = await deriveFullContextForSession(session, store);
+  if (!context.principal.principal_actor_id) throw new AILPError('IDENTITY_ONLY_SESSION_CANNOT_AUTHOR');
+
+  const at = nowIso();
+  // createPublication's own idempotency gate canonical-JSON-digests the raw
+  // command before any of its own `?? default` fallbacks run, and that
+  // canonicalizer rejects a present-but-undefined key outright (by design --
+  // it's meant to catch real bugs, not silently drop them). So optional
+  // fields must be OMITTED here when absent, never passed through as
+  // `parsed.whatever` when that's undefined.
+  const command = {
+    command_id: `cmd:${randomUUID()}`,
+    idempotency_key: parsed.idempotency_key || `cmd:${randomUUID()}`,
+    principal_id: context.principal.principal_id,
+    author_actor_id: parsed.author_actor_id,
+    publication_type: parsed.publication_type,
+    body: parsed.body ?? '',
+    occurred_at: at
+  };
+  if (parsed.publication_id !== undefined) command.publication_id = parsed.publication_id;
+  if (parsed.audience_actor_ids !== undefined) command.audience_actor_ids = parsed.audience_actor_ids;
+  if (parsed.reply_to_ref !== undefined) command.reply_to_ref = parsed.reply_to_ref;
+  if (parsed.quote_of_ref !== undefined) command.quote_of_ref = parsed.quote_of_ref;
+
+  const result = await createPublication(command, {
+    eventStore, db: sql,
+    principalActorId: context.principal.principal_actor_id,
+    capabilityGrants: [],
+    credentialRefs: context.credentialRefs,
+    evaluatedAt: at
+  });
+  // createPublication only appends to the canonical event log; the public
+  // read side (loadPublicationSurface) queries the separate
+  // publications_current projection table, which nothing updates
+  // automatically. Every existing production script that writes a
+  // publication (production-validation-fixture-v1.js included) explicitly
+  // re-projects afterward -- without this the publication would exist in
+  // the event log but be invisible to every GET route.
+  await projectPublicationStream(sql, eventStore, result.publication_id);
+  return json(201, result);
+}
+
 // -- top-level route table --
 
-function createAilpRoutes({ store, rpKey, allowedOrigins = ALLOWED_ORIGINS }) {
+function createAilpRoutes({ store, rpKey, sql, eventStore, allowedOrigins = ALLOWED_ORIGINS }) {
   return async function ailpRoutes({ request, url, services }) {
     if (!allowedOrigins.includes(url.origin)) {
-      if (url.pathname === '/.well-known/ailp' || url.pathname.startsWith('/ailp/v1/')) {
+      if (url.pathname === '/.well-known/ailp' || url.pathname.startsWith('/ailp/v1/') || url.pathname === '/api/publications') {
         return json(403, { error: 'AILP_ORIGIN_NOT_ALLOWED' });
       }
       return null;
@@ -493,7 +610,12 @@ function createAilpRoutes({ store, rpKey, allowedOrigins = ALLOWED_ORIGINS }) {
       if (url.pathname === '/ailp/v1/actor-bindings/bootstrap') {
         const { buffer, parsed } = await readJsonBody(request);
         const session = await authenticateSessionRequest({ request, url, bodyBuffer: buffer, store });
-        return await handleActorBindingsBootstrap({ parsed, session, rpKey, store });
+        return await handleActorBindingsBootstrap({ parsed, session, rpKey, store, eventStore });
+      }
+      if (url.pathname === '/api/publications') {
+        const { buffer, parsed } = await readJsonBody(request);
+        const session = await authenticateSessionRequest({ request, url, bodyBuffer: buffer, store });
+        return await handlePublicationCreate({ parsed, session, store, eventStore, sql });
       }
       return null;
     } catch (error) {
