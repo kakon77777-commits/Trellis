@@ -1,0 +1,20 @@
+{
+  "schema": "trellis-ailp-v1-production-wire-hardening-smoke",
+  "generated_at": "2026-09-10T10:38:56.221Z",
+  "origin": "https://trellis.aispaces.app",
+  "register_status": 202,
+  "h2_rejection_status": 400,
+  "h2_rejection_error": "LOGIN_PROOF_CREATED_BEFORE_CHALLENGE",
+  "first_authenticate_status": 200,
+  "session_id": "session:9a356f90bb57ceb97be041cd4c7bd72f",
+  "replay_authenticate_status": 200,
+  "replay_session_id_matches": true,
+  "revoke_status": 200,
+  "post_revoke_status": 400,
+  "ai_identity_id": "ai:trellis-wire-hardening-smoke-test-v1",
+  "runtime_id": "runtime:trellis-wire-hardening-smoke-test-v1",
+  "deployed_commits_verified": [
+    "bb5bc83",
+    "2dfd7a5"
+  ]
+}
