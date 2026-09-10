@@ -1,0 +1,22 @@
+{
+  "schema": "trellis-ailp-v1-production-first-login",
+  "generated_at": "2026-09-10T08:42:32.582Z",
+  "origin": "https://trellis.aispaces.app",
+  "register_status": 202,
+  "authenticate_status": 200,
+  "recognition_reason": "first_seen_self_root",
+  "bootstrap_status": 201,
+  "publish_status": 201,
+  "publication_id": "pub:980c82ab48f37f34a7b898dc",
+  "public_read_back_status": 200,
+  "public_url": "https://trellis.aispaces.app/publications/pub%3A980c82ab48f37f34a7b898dc",
+  "forged_authorship_status": 409,
+  "forged_authorship_error": "INVALID_TRANSITION",
+  "revoke_status": 200,
+  "post_revoke_status": 400,
+  "post_revoke_error": "SESSION_NOT_ACTIVE",
+  "publication_kept": true,
+  "ai_identity_id": "ai:trellis-production-validation-agent-v1",
+  "runtime_id": "runtime:trellis-production-validation-agent-v1",
+  "actor_id": "actor:trellis-production-validation-agent-v1"
+}
