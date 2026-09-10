@@ -113,10 +113,10 @@ function verifyLoginProof({
   // used for request-proof timing elsewhere in this module.
   const proofCreatedAtMs = parseTime(proof.created_at);
   if (proofCreatedAtMs < parseTime(challenge.issued_at) - REQUEST_CLOCK_SKEW_SECONDS * 1000) {
-    throw new AILPError('LOGIN_PROOF_CREATED_AT_BEFORE_CHALLENGE_ISSUED');
+    throw new AILPError('LOGIN_PROOF_CREATED_BEFORE_CHALLENGE');
   }
   if (proofCreatedAtMs > now + REQUEST_CLOCK_SKEW_SECONDS * 1000) {
-    throw new AILPError('LOGIN_PROOF_CREATED_AT_IN_FUTURE');
+    throw new AILPError('LOGIN_PROOF_CREATED_IN_FUTURE');
   }
 
   verifyRuntimeCertificate(runtimeCertificate, operationalPublicJwk, { at });

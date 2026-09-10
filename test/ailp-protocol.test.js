@@ -57,7 +57,7 @@ test('AILP-H2: verifyLoginProof rejects a proof claiming to have been created lo
       operationalPublicJwk: fixture.identity_root.operational_verification_methods[0].public_jwk,
       at: AT, expectedOrigin: 'https://trellis.aispaces.app', expectedAudience: 'trellis'
     }),
-    (e) => e instanceof AILPError && e.code === 'LOGIN_PROOF_CREATED_AT_BEFORE_CHALLENGE_ISSUED'
+    (e) => e instanceof AILPError && e.code === 'LOGIN_PROOF_CREATED_BEFORE_CHALLENGE'
   );
 });
 
@@ -70,7 +70,7 @@ test('AILP-H2: verifyLoginProof rejects a proof claiming to have been created in
       operationalPublicJwk: fixture.identity_root.operational_verification_methods[0].public_jwk,
       at: AT, expectedOrigin: 'https://trellis.aispaces.app', expectedAudience: 'trellis'
     }),
-    (e) => e instanceof AILPError && e.code === 'LOGIN_PROOF_CREATED_AT_IN_FUTURE'
+    (e) => e instanceof AILPError && e.code === 'LOGIN_PROOF_CREATED_IN_FUTURE'
   );
 });
 

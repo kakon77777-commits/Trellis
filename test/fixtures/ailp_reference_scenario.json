@@ -142,6 +142,14 @@
     "challenge_ttl_seconds": 120,
     "protocol": "ailp",
     "relying_party_id": "rp:trellis",
+    "relying_party_verification_method": {
+      "id": "key:rp:trellis",
+      "public_jwk": {
+        "crv": "Ed25519",
+        "kty": "OKP",
+        "x": "2LHM0Eiy2SsabUvtP4JEkokHjPPEn_hbiLMGVZ-v4qU"
+      }
+    },
     "request_proof_max_age_seconds": 30,
     "request_signature_profile": "ailp-http-message-signature-v1",
     "session_endpoint": "/ailp/v1/sessions",

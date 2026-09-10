@@ -11,11 +11,14 @@ const {
 
 // Cross-language conformance gate (mssp-tdd-apr Structural closure requirement
 // for AILP v0.1 Trellis integration): this fixture is CTCL-ITR's own signed
-// examples/ailp_reference_scenario.json (v0.2.17, commit da9fa19), produced and
-// signed entirely by the Python reference implementation. Every check below
-// re-derives canonical bytes / digests / Ed25519 verification independently in
-// this JS implementation. A pass here proves Python AILP semantics == Trellis
-// JS semantics for the vertical-slice subset, not merely "looks similar".
+// examples/ailp_reference_scenario.json (v0.2.18, commit 320805d), produced and
+// signed entirely by the Python reference implementation. The signed objects
+// below are byte-identical to v0.2.17 (only the unsigned discovery document
+// changed in v0.2.18); re-pinned to stay current with the Python original.
+// Every check below re-derives canonical bytes / digests / Ed25519
+// verification independently in this JS implementation. A pass here proves
+// Python AILP semantics == Trellis JS semantics for the vertical-slice
+// subset, not merely "looks similar".
 const fixture = JSON.parse(
   readFileSync(path.join(__dirname, 'fixtures', 'ailp_reference_scenario.json'), 'utf8')
 );
