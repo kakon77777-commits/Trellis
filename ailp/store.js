@@ -59,29 +59,83 @@ class AilpStore {
     return rowOrNull(await this.sql.first(`SELECT * FROM ailp_challenges WHERE challenge_id=?`, [challengeId]));
   }
 
-  // Returns { firstConsumption: true, resultRef } on first consumption,
-  // { firstConsumption: false, resultRef } if replayed with the SAME proof digest
-  // (idempotent retry), or throws AILP_CHALLENGE_PROOF_MISMATCH if replayed with
-  // a DIFFERENT proof digest (someone trying to reuse the challenge slot).
-  async consumeChallenge(challengeId, { proofDigest, resultRef }) {
-    const existing = await this.getChallenge(challengeId);
-    if (!existing) throw new AILPError('AILP_CHALLENGE_NOT_FOUND');
-    if (existing.consumed_proof_digest != null) {
-      if (existing.consumed_proof_digest !== proofDigest) throw new AILPError('AILP_CHALLENGE_PROOF_MISMATCH');
-      return { firstConsumption: false, resultRef: existing.result_ref };
-    }
-    const result = await this.sql.run(
-      `UPDATE ailp_challenges SET consumed_proof_digest=?, result_ref=?
-       WHERE challenge_id=? AND consumed_proof_digest IS NULL`,
-      [proofDigest, resultRef, challengeId]
-    );
-    if (Number(result.changes) === 0) {
-      // Lost a race with a concurrent consumer; re-read and treat like a replay.
-      const raced = await this.getChallenge(challengeId);
-      if (raced && raced.consumed_proof_digest === proofDigest) return { firstConsumption: false, resultRef: raced.result_ref };
-      throw new AILPError('AILP_CHALLENGE_PROOF_MISMATCH');
-    }
-    return { firstConsumption: true, resultRef };
+  // Commits an entire successful authenticate as ONE atomic unit: challenge
+  // consumption, the runtime-certificate/authentication-receipt/recognition-
+  // receipt/session-grant evidence objects, the ailp_recognition_current
+  // projection, the ailp_sessions row, the security-journal entry, and the
+  // cached authenticate_response used for idempotent replay -- all commit
+  // together or none do. Before this, each of these was a separate write;
+  // a crash or DB error partway through left the challenge permanently
+  // marked consumed with no cached result to replay, which wedged that
+  // exact login attempt forever (every retry recomputes the same
+  // deterministic session_id and re-derives the same "not first
+  // consumption, no cache" dead end). Sol, backtracing the canonical
+  // protocol's atomicity requirement, named this as the remaining gap.
+  //
+  // The challenge-consumption UPDATE is deliberately the first statement:
+  // its WHERE consumed_proof_digest IS NULL guard is the exclusivity gate
+  // for this challenge. A concurrent duplicate request for the exact same
+  // proof digest independently collides on ailp_sessions' session_id
+  // PRIMARY KEY (deterministic from the proof digest) and so throws,
+  // aborting its whole transaction -- the caller is expected to catch that
+  // via isUniqueConstraintError and read back the winner's committed
+  // result. A concurrent request for a genuinely DIFFERENT proof digest on
+  // the same challenge does not collide on any constraint (different
+  // digests, different session id), so this method cannot itself prevent
+  // both from committing; the caller inspects this method's first result's
+  // `changes` (0 means this call lost that race) and is responsible for
+  // flagging it, since neither adapter's batch() can conditionally abort
+  // later statements based on an earlier statement's row count.
+  async commitAuthenticateTransaction({
+    challengeId, proofDigest, resultRef,
+    runtimeCertificateDigest, runtimeCertificateJson, runtimeId,
+    authenticationReceiptDigest, authenticationReceiptJson,
+    recognitionReceiptDigest, recognitionReceiptJson, aiIdentityId, assuranceProfileJson,
+    sessionGrantDigest, sessionGrantJson, session,
+    securityEventDetailsJson,
+    authenticateResponseDigest, authenticateResponseJson,
+    at, expiresAt
+  }) {
+    const putObjectStatement = (digest, objectType, subjectRef, canonicalJson) => ({
+      sql: `INSERT INTO ailp_objects(object_digest,object_type,issuer_ref,subject_ref,canonical_json,created_at)
+            VALUES (?,?,?,?,?,?) ON CONFLICT(object_digest) DO NOTHING`,
+      params: [digest, objectType, null, subjectRef, canonicalJson, at]
+    });
+    return this.sql.batch([
+      {
+        sql: `UPDATE ailp_challenges SET consumed_proof_digest=?, result_ref=?
+              WHERE challenge_id=? AND consumed_proof_digest IS NULL`,
+        params: [proofDigest, resultRef, challengeId]
+      },
+      putObjectStatement(runtimeCertificateDigest, 'runtime_certificate', runtimeId, runtimeCertificateJson),
+      putObjectStatement(authenticationReceiptDigest, 'authentication_receipt', aiIdentityId, authenticationReceiptJson),
+      putObjectStatement(recognitionReceiptDigest, 'recognition_receipt', aiIdentityId, recognitionReceiptJson),
+      {
+        sql: `INSERT INTO ailp_recognition_current(ai_identity_id,recognition_receipt_ref,recognition_status,assurance_profile_json,recognized_at,expires_at)
+              VALUES (?,?,?,?,?,?)
+              ON CONFLICT(ai_identity_id) DO UPDATE SET
+                recognition_receipt_ref=excluded.recognition_receipt_ref,recognition_status=excluded.recognition_status,
+                assurance_profile_json=excluded.assurance_profile_json,recognized_at=excluded.recognized_at,expires_at=excluded.expires_at`,
+        params: [aiIdentityId, recognitionReceiptDigest, 'recognized', assuranceProfileJson, at, expiresAt]
+      },
+      putObjectStatement(sessionGrantDigest, 'session_grant', session.sessionId, sessionGrantJson),
+      {
+        sql: `INSERT INTO ailp_sessions(session_id,session_grant_ref,ai_identity_id,identity_epoch,runtime_id,runtime_key_thumbprint,
+                runtime_certificate_ref,actor_binding_ref,actor_id,session_class,origin,state,issued_at,expires_at,idle_expires_at,revocation_reason)
+              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        params: [
+          session.sessionId, sessionGrantDigest, aiIdentityId, session.identityEpoch,
+          session.runtimeId, session.runtimeKeyThumbprint, session.runtimeCertificateRef,
+          null, null, session.sessionClass, session.origin, 'active', at, expiresAt, null, null
+        ]
+      },
+      {
+        sql: `INSERT INTO ailp_security_events(event_type,subject_ref,object_ref,occurred_at,details_json)
+              VALUES (?,?,?,?,?)`,
+        params: ['login_success', aiIdentityId, session.sessionId, at, securityEventDetailsJson]
+      },
+      putObjectStatement(authenticateResponseDigest, 'authenticate_response', session.sessionId, authenticateResponseJson)
+    ]);
   }
 
   // -- ailp_recognition_current --

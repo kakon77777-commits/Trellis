@@ -1,6 +1,6 @@
 {
   "schema": "trellis-storage-layer-b-local-v1",
-  "generated_at": "2026-09-09T15:48:28.577Z",
+  "generated_at": "2026-09-10T10:24:38.129Z",
   "equivalence_match": true,
   "sqlite": {
     "schema": "trellis-storage-contract-v1",

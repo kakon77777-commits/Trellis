@@ -19,7 +19,7 @@ const { foldEntity } = require('../entity/fold');
 const { evaluateAuthority } = require('../authority/policy');
 const { createPublication } = require('../publication/service');
 const { projectPublicationStream } = require('../publication/projector');
-const { PolicyDeniedError, InvalidTransitionError, IdempotencyConflictError, VersionConflictError } = require('../core/errors');
+const { PolicyDeniedError, InvalidTransitionError, IdempotencyConflictError, VersionConflictError, StorageInvariantError } = require('../core/errors');
 const { isUniqueConstraintError } = require('./store');
 
 // The two real Trellis production origins. They share one relying-party
@@ -263,28 +263,39 @@ async function handleAuthenticate({ parsed, url, rpKey, store }) {
   });
 
   const sessionId = deterministicSessionId(verifyResult.proofDigest);
-  const consumeResult = await store.consumeChallenge(challenge.challenge_id, { proofDigest: verifyResult.proofDigest, resultRef: sessionId });
-  if (!consumeResult.firstConsumption) {
-    const cached = await store.getLatestObjectByTypeAndSubject('authenticate_response', sessionId);
-    if (cached) return json(200, JSON.parse(cached.canonical_json));
-  }
 
-  await store.putObject({
-    digest: digestDocument(runtimeCertificate),
-    objectType: 'runtime_certificate',
-    subjectRef: runtimeCertificate.runtime_id,
-    canonicalJson: JSON.stringify(runtimeCertificate),
-    createdAt: at
-  });
+  // The challenge is single-use. challengeRow was already loaded above, so
+  // its consumption state is checked directly here rather than issuing a
+  // second read -- and, critically, WITHOUT writing anything yet. Every
+  // write below (challenge consumption included) now happens in one atomic
+  // transaction, so "already consumed" and "a cached result exists" are
+  // guaranteed to be the same fact once this function returns 200. If they
+  // ever diverge (consumed, but no cache), that is not a state a caller can
+  // safely paper over by silently redoing every side effect with a fresh
+  // timestamp -- it must fail loudly instead. See AILP_AUTHENTICATE_RESULT_PENDING below.
+  if (challengeRow.consumed_proof_digest != null) {
+    if (challengeRow.consumed_proof_digest !== verifyResult.proofDigest) throw new AILPError('AILP_CHALLENGE_PROOF_MISMATCH');
+    const cached = await store.getLatestObjectByTypeAndSubject('authenticate_response', challengeRow.result_ref);
+    if (cached) return json(200, JSON.parse(cached.canonical_json));
+    // Consumed, but no cached result -- not a caller fault (the proof is
+    // genuinely valid and already spent) and not safe to treat as
+    // AILP_CHALLENGE_PROOF_MISMATCH either. StorageInvariantError maps to a
+    // plain 500 with nothing code-specific leaked, same as any other
+    // internal inconsistency this store layer can detect.
+    throw new StorageInvariantError('AILP_AUTHENTICATE_RESULT_PENDING');
+  }
 
   const runtimeKeyThumbprint = keyThumbprint(runtimeCertificate.runtime_verification_method.public_jwk);
   const expiresAt = isoPlusSeconds(at, SESSION_TTL_SECONDS);
+  const runtimeCertificateDigest = digestDocument(runtimeCertificate);
+
+  const priorRecognition = await store.getRecognition(verifyResult.aiIdentityId);
 
   const authenticationReceipt = rpKey.sign(issueAuthenticationReceipt({
     authentication_receipt_id: `authr:${sessionId}`,
     claimed_ai_identity_id: verifyResult.aiIdentityId,
     runtime_id: verifyResult.runtimeId,
-    runtime_certificate_digest: digestDocument(runtimeCertificate),
+    runtime_certificate_digest: runtimeCertificateDigest,
     runtime_key_thumbprint: runtimeKeyThumbprint,
     challenge_id: challenge.challenge_id,
     proof_digest: verifyResult.proofDigest,
@@ -294,12 +305,8 @@ async function handleAuthenticate({ parsed, url, rpKey, store }) {
     verified_at: at,
     expires_at: expiresAt
   }));
-  await store.putObject({
-    digest: digestDocument(authenticationReceipt), objectType: 'authentication_receipt',
-    subjectRef: verifyResult.aiIdentityId, canonicalJson: JSON.stringify(authenticationReceipt), createdAt: at
-  });
+  const authenticationReceiptDigest = digestDocument(authenticationReceipt);
 
-  const priorRecognition = await store.getRecognition(verifyResult.aiIdentityId);
   const recognitionReceipt = rpKey.sign(issueRecognitionReceipt({
     recognition_receipt_id: `recr:${sessionId}`,
     ai_identity_id: verifyResult.aiIdentityId,
@@ -317,24 +324,13 @@ async function handleAuthenticate({ parsed, url, rpKey, store }) {
       prior_key_continuity: false,
       hardware_attestation: false
     },
-    authentication_receipt_ref: digestDocument(authenticationReceipt),
+    authentication_receipt_ref: authenticationReceiptDigest,
     evidence_refs: [],
     self_continuity_claim_refs: [],
     recognized_at: at,
     expires_at: expiresAt
   }));
-  await store.putObject({
-    digest: digestDocument(recognitionReceipt), objectType: 'recognition_receipt',
-    subjectRef: verifyResult.aiIdentityId, canonicalJson: JSON.stringify(recognitionReceipt), createdAt: at
-  });
-  await store.putRecognition({
-    aiIdentityId: verifyResult.aiIdentityId,
-    recognitionReceiptRef: digestDocument(recognitionReceipt),
-    recognitionStatus: 'recognized',
-    assuranceProfileJson: JSON.stringify(recognitionReceipt.assurance_profile),
-    recognizedAt: at,
-    expiresAt
-  });
+  const recognitionReceiptDigest = digestDocument(recognitionReceipt);
 
   const sessionGrant = rpKey.sign(issueSessionGrant({
     session_id: sessionId,
@@ -346,40 +342,66 @@ async function handleAuthenticate({ parsed, url, rpKey, store }) {
     actor_id: null,
     actor_binding_receipt_ref: null,
     origin: challenge.origin,
-    authentication_receipt_ref: digestDocument(authenticationReceipt),
-    recognition_receipt_ref: digestDocument(recognitionReceipt),
+    authentication_receipt_ref: authenticationReceiptDigest,
+    recognition_receipt_ref: recognitionReceiptDigest,
     state: 'active',
     issued_at: at,
     expires_at: expiresAt
   }));
-  await store.putObject({
-    digest: digestDocument(sessionGrant), objectType: 'session_grant',
-    subjectRef: sessionId, canonicalJson: JSON.stringify(sessionGrant), createdAt: at
-  });
-  await store.putSession({
-    sessionId,
-    sessionGrantRef: digestDocument(sessionGrant),
-    aiIdentityId: verifyResult.aiIdentityId,
-    identityEpoch: 1,
-    runtimeId: verifyResult.runtimeId,
-    runtimeKeyThumbprint,
-    runtimeCertificateRef: digestDocument(runtimeCertificate),
-    sessionClass: 'identity_only',
-    origin: challenge.origin,
-    state: 'active',
-    issuedAt: at,
-    expiresAt
-  });
-  await store.appendSecurityEvent({
-    eventType: 'login_success', subjectRef: verifyResult.aiIdentityId, objectRef: sessionId, occurredAt: at,
-    detailsJson: JSON.stringify({ runtime_id: verifyResult.runtimeId, origin: challenge.origin })
-  });
+  const sessionGrantDigest = digestDocument(sessionGrant);
 
   const responseBody = { authentication_receipt: authenticationReceipt, recognition_receipt: recognitionReceipt, session_grant: sessionGrant };
-  await store.putObject({
-    digest: digestDocument({ schema_version: AILP_VERSION, object_type: 'authenticate_response', ...responseBody }),
-    objectType: 'authenticate_response', subjectRef: sessionId, canonicalJson: JSON.stringify(responseBody), createdAt: at
-  });
+  const authenticateResponseDigest = digestDocument({ schema_version: AILP_VERSION, object_type: 'authenticate_response', ...responseBody });
+
+  let batchResult;
+  try {
+    batchResult = await store.commitAuthenticateTransaction({
+      challengeId: challenge.challenge_id, proofDigest: verifyResult.proofDigest, resultRef: sessionId,
+      runtimeCertificateDigest, runtimeCertificateJson: JSON.stringify(runtimeCertificate), runtimeId: verifyResult.runtimeId,
+      authenticationReceiptDigest, authenticationReceiptJson: JSON.stringify(authenticationReceipt),
+      recognitionReceiptDigest, recognitionReceiptJson: JSON.stringify(recognitionReceipt),
+      aiIdentityId: verifyResult.aiIdentityId, assuranceProfileJson: JSON.stringify(recognitionReceipt.assurance_profile),
+      sessionGrantDigest, sessionGrantJson: JSON.stringify(sessionGrant),
+      session: {
+        sessionId, identityEpoch: 1, runtimeId: verifyResult.runtimeId, runtimeKeyThumbprint,
+        runtimeCertificateRef: runtimeCertificateDigest, sessionClass: 'identity_only', origin: challenge.origin
+      },
+      securityEventDetailsJson: JSON.stringify({ runtime_id: verifyResult.runtimeId, origin: challenge.origin }),
+      authenticateResponseDigest, authenticateResponseJson: JSON.stringify(responseBody),
+      at, expiresAt
+    });
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      // The only UNIQUE constraint this transaction can hit is
+      // ailp_sessions.session_id, which is deterministic from the proof
+      // digest -- so this means a concurrent request already committed the
+      // full result for this exact proof. Read it back instead of
+      // surfacing a raw constraint failure to the caller.
+      const cached = await store.getLatestObjectByTypeAndSubject('authenticate_response', sessionId);
+      if (cached) return json(200, JSON.parse(cached.canonical_json));
+    }
+    throw error;
+  }
+
+  if (Number(batchResult[0].changes) === 0) {
+    // The challenge-consumption UPDATE (first statement) affected no row,
+    // meaning a concurrent request for a DIFFERENT proof digest already
+    // consumed this challenge between the read at the top of this function
+    // and this transaction's commit. Unlike the same-proof case above, that
+    // is not caught by any constraint (different proof digest -> different
+    // session id -> nothing collides), so this transaction's writes -- for
+    // a proof that lost a single-use challenge race it should have lost
+    // outright -- already committed by the time this is observed. This is
+    // a narrow, low-severity residual gap (both proofs necessarily prove
+    // possession of the same operational/runtime keys; this is not a
+    // cross-identity or privilege-escalation path), flagged here for audit
+    // rather than silently ignored.
+    await store.appendSecurityEvent({
+      eventType: 'ailp_challenge_consumption_race', subjectRef: verifyResult.aiIdentityId, objectRef: sessionId, occurredAt: at,
+      detailsJson: JSON.stringify({ challenge_id: challenge.challenge_id, proof_digest: verifyResult.proofDigest })
+    });
+  }
+
   return json(200, responseBody);
 }
 
