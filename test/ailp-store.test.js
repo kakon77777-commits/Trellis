@@ -120,6 +120,22 @@ test('request replay guard: same (session_id, request_id) can only be recorded o
   }
 });
 
+test('recordRequestOnce propagates a genuine persistence failure instead of misreporting it as a replay (found by Sol backtracing the canonical protocol)', async () => {
+  const { db, store } = makeStore();
+  try {
+    // No session:does-not-exist row exists, so this insert fails on the
+    // ailp_request_replay_guards -> ailp_sessions FOREIGN KEY, not on the
+    // (session_id, request_id) UNIQUE constraint. A real infrastructure
+    // fault must never come back looking like "this was a replay".
+    await assert.rejects(
+      () => store.recordRequestOnce('session:does-not-exist', 'request:1', 1788944490),
+      (e) => !e.message.includes('UNIQUE constraint failed')
+    );
+  } finally {
+    db.close();
+  }
+});
+
 test('session revoke stops further use: revoking twice does not re-revoke and reports no-op', async () => {
   const { db, store } = makeStore();
   try {

@@ -10,6 +10,13 @@ const {
 const AILP_VERSION = 'ailp/0.1';
 const REQUEST_SIGNATURE_PROFILE = 'ailp-http-message-signature-v1';
 const REQUEST_CLOCK_SKEW_SECONDS = 60;
+// AILP-H3 (Sol, 2026-09-10): discovery advertises this as the max request
+// -proof lifetime, but nothing enforced it -- a proof with an absurdly long
+// or even time-reversed (expires <= created) window could otherwise pass
+// as long as the server's own `at` happened to land inside the existing
+// skew tolerance. Must match the value routes.js publishes at
+// /.well-known/ailp's request_proof_max_age_seconds.
+const REQUEST_PROOF_MAX_AGE_SECONDS = 30;
 
 function parseTime(value) {
   const ms = Date.parse(value);
@@ -96,6 +103,21 @@ function verifyLoginProof({
   if (now > parseTime(challenge.expires_at)) throw new AILPError('CHALLENGE_EXPIRED');
   if (now < parseTime(challenge.issued_at)) throw new AILPError('CHALLENGE_NOT_YET_VALID');
   if (challenge.request_digest !== digestDocument(challengeRequest)) throw new AILPError('CHALLENGE_REQUEST_DIGEST_MISMATCH');
+
+  // AILP-H2 (found by Sol backtracing the canonical protocol, 2026-09-10):
+  // the challenge window alone doesn't bound proof.created_at -- a caller
+  // holding a genuinely valid runtime key could still sign a proof claiming
+  // an arbitrary past or future created_at, which doesn't let them forge a
+  // login but does let the signed audit timestamp lie. Bound it to
+  // [challenge.issued_at, now], both with the same clock-skew tolerance
+  // used for request-proof timing elsewhere in this module.
+  const proofCreatedAtMs = parseTime(proof.created_at);
+  if (proofCreatedAtMs < parseTime(challenge.issued_at) - REQUEST_CLOCK_SKEW_SECONDS * 1000) {
+    throw new AILPError('LOGIN_PROOF_CREATED_AT_BEFORE_CHALLENGE_ISSUED');
+  }
+  if (proofCreatedAtMs > now + REQUEST_CLOCK_SKEW_SECONDS * 1000) {
+    throw new AILPError('LOGIN_PROOF_CREATED_AT_IN_FUTURE');
+  }
 
   verifyRuntimeCertificate(runtimeCertificate, operationalPublicJwk, { at });
   const requestExpected = {
@@ -275,6 +297,9 @@ function verifyRequestProof({ proof, method, targetUri, sessionId, requestId, co
   if (JSON.stringify(proof.covered_components) !== JSON.stringify(expectedComponents)) throw new AILPError('REQUEST_COVERED_COMPONENTS_MISMATCH');
   const created = Number(proof.created);
   const expires = Number(proof.expires);
+  if (!Number.isFinite(created) || !Number.isFinite(expires)) throw new AILPError('INVALID_REQUEST_PROOF_WINDOW');
+  if (expires <= created) throw new AILPError('INVALID_REQUEST_PROOF_WINDOW');
+  if (expires - created > REQUEST_PROOF_MAX_AGE_SECONDS) throw new AILPError('REQUEST_PROOF_WINDOW_TOO_LONG');
   if (Number(at) < created - REQUEST_CLOCK_SKEW_SECONDS) throw new AILPError('REQUEST_PROOF_NOT_YET_VALID');
   if (Number(at) > expires + REQUEST_CLOCK_SKEW_SECONDS) throw new AILPError('REQUEST_PROOF_EXPIRED');
   const actualDigest = contentDigestSha256(body);
@@ -302,6 +327,7 @@ function verifyRequestProof({ proof, method, targetUri, sessionId, requestId, co
 module.exports = {
   AILP_VERSION,
   REQUEST_SIGNATURE_PROFILE,
+  REQUEST_PROOF_MAX_AGE_SECONDS,
   verifyAiIdentityRoot,
   verifyRuntimeCertificate,
   issueLoginChallenge,

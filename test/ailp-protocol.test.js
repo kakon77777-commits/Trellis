@@ -48,6 +48,32 @@ test('verifyLoginProof accepts the full fixture chain end to end', () => {
   assert.equal(result.requestedActorId, 'actor:reference');
 });
 
+test('AILP-H2: verifyLoginProof rejects a proof claiming to have been created long before the challenge was even issued', () => {
+  const tamperedProof = { ...fixture.login_proof, created_at: '2026-09-09T08:00:00Z' };
+  assert.throws(
+    () => verifyLoginProof({
+      challenge: fixture.challenge, challengeRequest: fixture.challenge_request, proof: tamperedProof,
+      runtimeCertificate: fixture.runtime_certificate,
+      operationalPublicJwk: fixture.identity_root.operational_verification_methods[0].public_jwk,
+      at: AT, expectedOrigin: 'https://trellis.aispaces.app', expectedAudience: 'trellis'
+    }),
+    (e) => e instanceof AILPError && e.code === 'LOGIN_PROOF_CREATED_AT_BEFORE_CHALLENGE_ISSUED'
+  );
+});
+
+test('AILP-H2: verifyLoginProof rejects a proof claiming to have been created in the future (a valid runtime key must not be able to make the signed audit time lie)', () => {
+  const tamperedProof = { ...fixture.login_proof, created_at: '2026-09-09T10:00:00Z' };
+  assert.throws(
+    () => verifyLoginProof({
+      challenge: fixture.challenge, challengeRequest: fixture.challenge_request, proof: tamperedProof,
+      runtimeCertificate: fixture.runtime_certificate,
+      operationalPublicJwk: fixture.identity_root.operational_verification_methods[0].public_jwk,
+      at: AT, expectedOrigin: 'https://trellis.aispaces.app', expectedAudience: 'trellis'
+    }),
+    (e) => e instanceof AILPError && e.code === 'LOGIN_PROOF_CREATED_AT_IN_FUTURE'
+  );
+});
+
 test('verifyLoginProof rejects a wrong origin (cross-origin session binding, Sol requirement)', () => {
   assert.throws(
     () => verifyLoginProof({
@@ -188,6 +214,32 @@ test('verifyRequestProof accepts the fixture request proof end to end (RFC 9421-
     at: fixture.request.verified_at_unix
   });
   assert.equal(result.valid, true);
+});
+
+test('AILP-H3: verifyRequestProof rejects a time-reversed window (expires <= created)', () => {
+  const tamperedProof = { ...fixture.request_proof, expires: fixture.request_proof.created - 5 };
+  assert.throws(
+    () => verifyRequestProof({
+      proof: tamperedProof, method: fixture.request.method, targetUri: fixture.request.target_uri,
+      sessionId: fixture.session_grant.session_id, requestId: fixture.request.request_id,
+      contentType: fixture.request.content_type, body: Buffer.from(fixture.request.body_utf8, 'utf8'),
+      publicJwk: fixture.runtime_certificate.runtime_verification_method.public_jwk, at: fixture.request.verified_at_unix
+    }),
+    (e) => e instanceof AILPError && e.code === 'INVALID_REQUEST_PROOF_WINDOW'
+  );
+});
+
+test('AILP-H3: verifyRequestProof rejects a window longer than the advertised max age (discovery says 30s; nothing enforced it before)', () => {
+  const tamperedProof = { ...fixture.request_proof, expires: fixture.request_proof.created + 3600 };
+  assert.throws(
+    () => verifyRequestProof({
+      proof: tamperedProof, method: fixture.request.method, targetUri: fixture.request.target_uri,
+      sessionId: fixture.session_grant.session_id, requestId: fixture.request.request_id,
+      contentType: fixture.request.content_type, body: Buffer.from(fixture.request.body_utf8, 'utf8'),
+      publicJwk: fixture.runtime_certificate.runtime_verification_method.public_jwk, at: fixture.request.verified_at_unix
+    }),
+    (e) => e instanceof AILPError && e.code === 'REQUEST_PROOF_WINDOW_TOO_LONG'
+  );
 });
 
 test('verifyRequestProof rejects a request-body substitution (content digest no longer matches)', () => {

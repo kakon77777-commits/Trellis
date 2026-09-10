@@ -3,6 +3,7 @@ const { AILPError, digestDocument, keyThumbprint } = require('./canonical');
 const {
   AILP_VERSION,
   REQUEST_SIGNATURE_PROFILE,
+  REQUEST_PROOF_MAX_AGE_SECONDS,
   verifyAiIdentityRoot,
   issueLoginChallenge,
   verifyLoginProof,
@@ -18,6 +19,8 @@ const { foldEntity } = require('../entity/fold');
 const { evaluateAuthority } = require('../authority/policy');
 const { createPublication } = require('../publication/service');
 const { projectPublicationStream } = require('../publication/projector');
+const { PolicyDeniedError, InvalidTransitionError, IdempotencyConflictError, VersionConflictError } = require('../core/errors');
+const { isUniqueConstraintError } = require('./store');
 
 // The two real Trellis production origins. They share one relying-party
 // identity and audience, but sessions are exact-origin bound: a session
@@ -29,7 +32,10 @@ const RECOGNITION_POLICY_REF = 'trellis-recognition:v1';
 const BINDING_POLICY_REF = 'trellis-binding:v1';
 const CHALLENGE_TTL_SECONDS = 120;
 const SESSION_TTL_SECONDS = 600;
-const REQUEST_PROOF_MAX_AGE_SECONDS = 30;
+// REQUEST_PROOF_MAX_AGE_SECONDS is imported from ./protocol -- it's the
+// value verifyRequestProof actually enforces (AILP-H3), so this module
+// must publish the exact same constant at discovery, never a second copy
+// that could silently drift from what's really enforced.
 
 function nowIso() {
   return new Date().toISOString();
@@ -42,18 +48,26 @@ function json(status, value) {
 }
 // AILP errors are the caller's fault (bad proof, expired challenge, unknown
 // identity, etc.) -- 400. Domain errors from the pre-existing command
-// services (PolicyDeniedError, InvalidTransitionError,
-// IdempotencyConflictError -- all core/errors.js classes with a stable
-// `.code`) are equally the caller's fault and equally expected outcomes,
+// services are equally the caller's fault and equally expected outcomes,
 // not our bug -- 403 for an Authority denial specifically (that's the
 // concrete evidence Sol asked for that Authentication != Authority still
-// holds with AILP wired in), 409 for the rest. Anything else really is our
-// bug, not theirs -- 500, and deliberately does not leak the underlying
-// message.
+// holds with AILP wired in), 409 for the rest.
+//
+// Deliberately NOT a generic `typeof error.code === 'string'` duck-type
+// check: a raw internal failure (e.g. node:sqlite/D1 throws with
+// `code: 'ERR_SQLITE_ERROR'` for ANY SQL error, not just an expected one)
+// also happens to have a string `.code`, and would otherwise leak through
+// as a clean 409 instead of the 500 it actually is. Only these specific,
+// known, already-meaningful domain error classes get a clean mapping;
+// everything else -- including StorageInvariantError, which represents an
+// internal consistency bug, not a caller mistake -- falls through to 500
+// with no message leaked.
 function ailpErrorResponse(error) {
   if (error instanceof AILPError) return json(400, { error: error.code });
-  if (error && error.code === 'POLICY_DENIED') return json(403, { error: error.code });
-  if (error && typeof error.code === 'string') return json(409, { error: error.code });
+  if (error instanceof PolicyDeniedError) return json(403, { error: error.code });
+  if (error instanceof InvalidTransitionError || error instanceof IdempotencyConflictError || error instanceof VersionConflictError) {
+    return json(409, { error: error.code });
+  }
   return json(500, { error: 'AILP_INTERNAL_ERROR' });
 }
 
@@ -459,7 +473,12 @@ async function handleActorBindingsBootstrap({ parsed, session, rpKey, store, eve
       boundAt: at
     });
   } catch (e) {
-    throw new AILPError('ACTOR_ALREADY_BOUND');
+    // Same discipline as AilpStore.recordRequestOnce: only the specific
+    // unique-index violation this schema uses to enforce "at most one
+    // active self-representation binding" means ACTOR_ALREADY_BOUND. Any
+    // other persistence failure is a real bug and must surface as one.
+    if (isUniqueConstraintError(e)) throw new AILPError('ACTOR_ALREADY_BOUND');
+    throw e;
   }
   await store.putObject({
     digest: digestDocument(actorBindingReceipt), objectType: 'actor_binding_receipt',

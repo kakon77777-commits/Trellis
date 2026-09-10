@@ -8,6 +8,16 @@ function rowOrNull(row) {
   return row || null;
 }
 
+// SQLite's constraint-violation error text is stable across both drivers
+// this store runs on (node:sqlite locally, D1 in production -- D1 is
+// SQLite at the edge and surfaces the same underlying engine text). Only
+// THIS specific failure means "the row already exists" / "the constraint
+// caught a real duplicate" -- a connection failure, a schema error, or any
+// other persistence fault must never be silently reinterpreted as that.
+function isUniqueConstraintError(error) {
+  return Boolean(error && typeof error.message === 'string' && error.message.includes('UNIQUE constraint failed'));
+}
+
 class AilpStore {
   constructor(sql) {
     this.sql = sql;
@@ -162,7 +172,13 @@ class AilpStore {
       );
       return true;
     } catch (e) {
-      return false;
+      // Only a genuine (session_id, request_id) collision means "this is a
+      // replay". A DB failure, FK problem, or schema error must never be
+      // silently reinterpreted as REQUEST_REPLAYED -- that would hide a
+      // real persistence fault behind a security-sounding false rejection.
+      // Found by Sol backtracing the canonical protocol, not by design review.
+      if (isUniqueConstraintError(e)) return false;
+      throw e;
     }
   }
 
@@ -189,4 +205,4 @@ class AilpStore {
   }
 }
 
-module.exports = { AilpStore };
+module.exports = { AilpStore, isUniqueConstraintError };
